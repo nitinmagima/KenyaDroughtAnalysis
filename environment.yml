@@ -4,86 +4,15 @@ channels:
   - defaults
 dependencies:
   - python=3.11
-  - anyio
-  - appnope
-  - argon2-cffi
-  - attrs
-  - beautifulsoup4
-  - cffi
-  - conda
-  - contourpy
-  - cryptography
-  - decorator
-  - defusedxml
-  - filelock
-  - freetype
-  - geopandas
-  - gst-plugins-base
-  - gstreamer
-  - ipykernel
-  - ipython
-  - ipywidgets
-  - joblib
-  - jupyter
-  - jupyter_client
-  - jupyter_console
-  - jupyter_core
-  - jupyter_server
-  - jupyterlab
-  - jupyterlab_pygments
-  - jupyterlab_server
-  - jupyterlab_widgets
-  - krb5
-  - libedit
-  - libffi
-  - libgfortran
-  - libpng
-  - libssh2
-  - lzo
-  - matplotlib-base
-  - matplotlib-inline
-  - nbclient
-  - nbconvert
-  - nbformat
   - numpy
-  - openjpeg
   - pandas
-  - parso
-  - patsy
-  - pip
-  - ptyprocess
-  - pycparser
-  - pygments
-  - pyopenssl
-  - pyproj
-  - python-dateutil
-  - pytz
-  - pyyaml
-  - pyzmq
-  - requests
-  - scikit-learn
   - scipy
+  - matplotlib
+  - ipywidgets
+  - pymannkendall
+  - geopandas
   - seaborn
-  - setuptools
-  - sip
-  - six
-  - statsmodels
-  - terminado
-  - threadpoolctl
-  - tk
-  - tornado
-  - tqdm
-  - traitlets
-  - typing-extensions
-  - urllib3
-  - wcwidth
-  - wheel
-  - widgetsnbextension
-  - xz
-  - yaml
-  - zlib
-  - pip:
-      - geemap
-      - ee
-      - pymannkendall
-      - ipyleaflet
+  - scikit-learn
+  - jsonschema  # Needed for `json` related operations, generally available in base packages.
+  - pip
+

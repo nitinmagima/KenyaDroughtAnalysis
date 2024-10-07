@@ -1,5 +1,7 @@
 # README: Drought Identification, Trend Analysis, and Clustering Across Kenyan Administrative Units
 
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/nitinmagima/KenyaDroughtAnalysis/HEAD)
+
 ## Project Overview
 
 This repository contains a set of scripts for analyzing drought conditions and trends in Kenya using Google Earth Engine (GEE) and clustering drought metrics to identify patterns across administrative units. The analysis is based on methods described in the [paper](https://www.mdpi.com/2071-1050/13/3/1042) and aims to replicate the findings for drought identification, trend analysis, and clustering at both the admin 1 and admin 2 levels. The repository contains four files:

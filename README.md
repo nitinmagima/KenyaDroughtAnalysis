@@ -13,8 +13,8 @@ This repository contains a set of scripts for analyzing drought conditions and t
 3. **kenyadrought_admin1.ipynb**: This notebook performs the analysis at the admin 1 level using pre-downloaded data from GEE.
 4. **kenyadrought_admin2.ipynb**: This notebook performs the analysis at the admin 2 level using pre-downloaded data from GEE.
 5. **kenya_admin2_droughtmetrics.csv**: Includes administrative information, drought metrics such as drought duration, severity, intensity, and other categorical features (e.g., region, season).
-6. **kenya_admin1_precip.csv**: Pre-downloaded for admin 1 from GEE.
-7. **kenya_admin2_precip.csv**: Pre-downloaded for admin 2 from GEE.
+6. **kenya_admin1_precip.csv**: Pre-downloaded precipitation data for admin 1 from GEE.
+7. **kenya_admin2_precip.csv**: Pre-downloaded precipitation data for admin 2 from GEE.
 8. **public_emdat_custom_request_2024-10-01_36a9efba-9545-41bc-a272-3b49c638962b.xlsx**: EM-DAT data for Kenya.
 9. **Geospatial Data**: Administrative boundaries are stored in a GeoDataFrame (admin_boundaries). We use the FAO GAUL: Global Administrative Unit Layers for the administrative boundaries.
 

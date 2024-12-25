@@ -75,6 +75,7 @@ def characterize_drought_events(spi_results_df, spi_threshold=-1.0):
 
     return pd.DataFrame(drought_events)
 
+
 # Function to plot interactive histograms
 def plot_interactive_histogram(admin2_name, variable, df):
     """
@@ -424,3 +425,271 @@ def setup_interactive_drought_analysis_custom(df):
             style={'description_width': 'initial'}
         )
     )
+    
+    
+    
+import pandas as pd
+import plotly.express as px
+from ipywidgets import interact, Dropdown, fixed
+
+def plot_temporal_heatmap_with_spi(df, characteristic, spi_scale):
+    """
+    Plots a temporal heatmap to analyze drought characteristics over time across regions using Plotly,
+    filtered by SPI scale.
+
+    Parameters:
+    - df (pd.DataFrame): The DataFrame containing drought characteristics data.
+    - characteristic (str): The drought characteristic to plot (e.g., 'Drought Severity', 'Drought Duration (months)', 'Drought Intensity').
+    - spi_scale (int): The selected SPI scale to filter the data.
+    """
+    # Ensure the chosen characteristic is in the DataFrame
+    if characteristic not in df.columns:
+        print(f"Characteristic '{characteristic}' is not available in the DataFrame.")
+        return
+
+    # Filter the DataFrame by the selected SPI scale
+    df_filtered = df[df['spi_scale'] == spi_scale].copy()  # Use `.copy()` to avoid SettingWithCopyWarning
+
+    # Convert 'Drought Start' to datetime and extract month-year for better granularity
+    df_filtered['Drought Start'] = pd.to_datetime(df_filtered['Drought Start'], errors='coerce')
+    df_filtered['Month-Year'] = df_filtered['Drought Start'].dt.to_period('M').astype(str)
+
+    # Create a pivot table with 'admin2_name' as the index, 'Month-Year' as columns, and the chosen characteristic as values
+    heatmap_data = df_filtered.pivot_table(index='admin2_name', columns='Month-Year', values=characteristic, aggfunc='mean')
+
+    # Convert the pivot table into a long-format DataFrame for Plotly
+    heatmap_data_long = heatmap_data.reset_index().melt(id_vars='admin2_name', var_name='Month-Year', value_name=characteristic)
+
+    # Select the appropriate color scale
+    if characteristic in ['Drought Severity', 'Drought Intensity']:
+        color_scale = 'YlOrRd_r'  # Reverse the scale for Severity and Intensity
+    else:
+        color_scale = 'YlOrRd'
+
+    # Plot the heatmap using Plotly Express
+    fig = px.density_heatmap(
+        heatmap_data_long,
+        x='Month-Year',
+        y='admin2_name',
+        z=characteristic,
+        color_continuous_scale=color_scale,
+        title=f'Temporal Heatmap of {characteristic} Across Regions (SPI Scale {spi_scale})',
+        labels={'Month-Year': 'Time (Month-Year)', 'admin2_name': 'Admin2 Name', characteristic: characteristic}
+    )
+
+    # Update layout for better readability
+    fig.update_layout(
+        xaxis_tickangle=45,
+        xaxis_title='Time (Month-Year)',
+        yaxis_title='Admin2 Name',
+        coloraxis_colorbar=dict(title=characteristic),
+        margin=dict(t=50, l=50, r=50, b=100),
+        height=600
+    )
+
+    # Show the plot
+    fig.show()
+
+def setup_interactive_heatmap_with_spi(df):
+    """
+    Sets up the interactive widget for the temporal heatmap with SPI scale selection.
+
+    Parameters:
+    - df (pd.DataFrame): The DataFrame containing drought characteristics data.
+    """
+    # Dropdown options for drought characteristics
+    characteristic_options = ['Drought Duration (months)', 'Drought Severity', 'Drought Intensity']
+
+    # Dropdown options for SPI scale
+    spi_scale_options = sorted(df['spi_scale'].unique().tolist())
+
+    # Use `interact` to create an interactive heatmap based on the selected characteristic and SPI scale
+    interact(
+        plot_temporal_heatmap_with_spi,
+        df=fixed(df),
+        characteristic=Dropdown(
+            options=characteristic_options,
+            description='Select Characteristic:',
+            style={'description_width': 'initial'}
+        ),
+        spi_scale=Dropdown(
+            options=spi_scale_options,
+            description='Select SPI Scale:',
+            style={'description_width': 'initial'}
+        )
+    )
+
+
+    
+import matplotlib.pyplot as plt
+from ipywidgets import interact, Dropdown
+
+def plot_geospatial_drought_map_static(drought_gdf, characteristic):
+    """
+    Plots a static geospatial map showing the selected drought characteristic.
+
+    Parameters:
+    - drought_gdf (GeoDataFrame): The GeoDataFrame containing the drought and geospatial data.
+    - characteristic (str): The drought characteristic to plot (e.g., 'Drought Duration', 'Drought Severity', 'Drought Intensity').
+    """
+    # Check if the characteristic exists in the GeoDataFrame
+    if characteristic not in drought_gdf.columns:
+        print(f"Error: The column '{characteristic}' does not exist in the GeoDataFrame.")
+        return
+
+    # Set the color map conditionally
+    if characteristic == 'Drought Duration (months)':
+        cmap = 'YlOrRd'  # Default color map for Drought Duration
+    else:
+        cmap = 'YlOrRd_r'  # Reversed color map for Severity and Intensity
+
+    # Set up the figure and axis
+    fig, ax = plt.subplots(figsize=(12, 10))
+
+    # Plot the GeoDataFrame
+    drought_gdf.plot(
+        column=characteristic,  # Column to be visualized
+        cmap=cmap,              # Conditional color map
+        linewidth=0.8,          # Line width for boundaries
+        ax=ax,                  # Axis to plot on
+        edgecolor='black',      # Edge color
+        legend=True             # Include a legend
+    )
+
+    # Customize the title and remove axis
+    plt.title(f'{characteristic} by Administrative Unit', fontsize=15)
+    plt.axis('off')
+
+    # Display the map
+    plt.show()
+
+
+def setup_interactive_geospatial_plot(drought_gdf):
+    """
+    Sets up an interactive widget for plotting geospatial drought maps.
+
+    Parameters:
+    - drought_gdf (GeoDataFrame): The GeoDataFrame containing the drought and geospatial data.
+    """
+    # Get the available characteristics for plotting
+    available_characteristics = ['Drought Duration (months)', 'Drought Severity', 'Drought Intensity']
+
+    # Use interact to create an interactive dropdown for the selected characteristic
+    interact(
+        plot_geospatial_drought_map_static,
+        drought_gdf=fixed(drought_gdf),
+        characteristic=Dropdown(
+            options=available_characteristics,
+            description='Characteristic:',
+            style={'description_width': 'initial'}
+        )
+    )
+    
+    
+
+import pandas as pd
+from ipywidgets import interact, Dropdown, fixed
+import pymannkendall as mk  # Ensure this library is installed
+
+def perform_trend_analysis(spi_series, time_scale):
+    """
+    Perform Mann-Kendall test and Sen's Slope Estimation for the given SPI series.
+
+    Parameters:
+    spi_series (pd.Series): Series of SPI values.
+    time_scale (str): Time scale (e.g., '1_month', '3_month').
+
+    Returns:
+    dict: Dictionary containing trend, p-value, and Sen's slope.
+    """
+    spi_series = spi_series.dropna()
+
+    # Perform Mann-Kendall Trend Test
+    mk_result = mk.original_test(spi_series)
+
+    return {
+        'time_scale': time_scale,
+        'trend': mk_result.trend,
+        'p_value': mk_result.p,
+        'sen_slope': mk_result.slope
+    }
+
+def analyze_trends(spi_results_df):
+    """
+    Perform trend analysis on all SPI series in the DataFrame.
+
+    Parameters:
+    spi_results_df (pd.DataFrame): DataFrame with SPI series for multiple regions and time scales.
+
+    Returns:
+    pd.DataFrame: DataFrame with trend analysis results for each region and time scale.
+    """
+    trend_analysis_results = {}
+
+    for column in spi_results_df.columns:
+        time_scale = column.split('_')[-1]
+        spi_series = spi_results_df[column]
+        trend_analysis_results[column] = perform_trend_analysis(spi_series, time_scale)
+
+    return pd.DataFrame(trend_analysis_results).T
+
+def categorize_trends(trend_analysis_df):
+    """
+    Categorize regions into increasing, decreasing, and no trends.
+
+    Parameters:
+    trend_analysis_df (pd.DataFrame): DataFrame containing trend analysis results.
+
+    Returns:
+    tuple: Three lists for increasing, decreasing, and no trends.
+    """
+    increasing_trends = trend_analysis_df[trend_analysis_df['trend'] == 'increasing'].index.tolist()
+    decreasing_trends = trend_analysis_df[trend_analysis_df['trend'] == 'decreasing'].index.tolist()
+    no_trend = trend_analysis_df[trend_analysis_df['trend'] == 'no trend'].index.tolist()
+    return increasing_trends, decreasing_trends, no_trend
+
+def setup_interactive_trend_explorer(trend_analysis_df):
+    """
+    Sets up an interactive widget to explore regions based on trend categories.
+
+    Parameters:
+    trend_analysis_df (pd.DataFrame): DataFrame with trend analysis results.
+    """
+    increasing_trends, decreasing_trends, no_trend = categorize_trends(trend_analysis_df)
+
+    def list_trend_regions(category):
+        """
+        List regions based on selected trend category.
+
+        Parameters:
+        - category (str): Trend category ('Increasing', 'Decreasing', 'No Trend').
+        """
+        if category == "Increasing":
+            regions = increasing_trends
+        elif category == "Decreasing":
+            regions = decreasing_trends
+        elif category == "No Trend":
+            regions = no_trend
+        else:
+            print(f"Invalid category: {category}")
+            return
+
+        # Display the regions
+        if regions:
+            print(f"Regions with {category.lower()} trend:")
+            for region in regions:
+                print(region)
+        else:
+            print(f"No regions found for {category.lower()} trend.")
+
+    # Interactive dropdown
+    interact(
+        list_trend_regions,
+        category=Dropdown(
+            options=["Increasing", "Decreasing", "No Trend"],
+            description="Select Trend:",
+            style={'description_width': 'initial'}
+        )
+    )
+
+    

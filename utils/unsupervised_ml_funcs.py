@@ -1,6 +1,10 @@
 from sklearn.decomposition import PCA
+import plotly.graph_objects as go
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+
 
 def compute_cumulative_variance(feature_vector):
     """
@@ -20,25 +24,56 @@ def compute_cumulative_variance(feature_vector):
     # Calculate the cumulative explained variance ratio
     cumulative_variance = np.cumsum(pca.explained_variance_ratio_)
 
-    return pca, cumulative_variance
+    return pca, np.round(cumulative_variance, 3)
 
 
-def plot_cumulative_variance(cumulative_variance):
+def plot_cumulative_variance_plotly(cumulative_variance):
     """
-    Plots the cumulative explained variance ratio against the number of components.
+    Creates an interactive Plotly line chart for the cumulative explained variance ratio.
 
     Parameters:
     - cumulative_variance (list or np.ndarray): The cumulative explained variance ratio.
     """
-    # Plot the cumulative explained variance ratio
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(1, len(cumulative_variance) + 1), cumulative_variance, marker='o', linestyle='-', color='b')
-    plt.xlabel('Number of Components')
-    plt.ylabel('Cumulative Explained Variance')
-    plt.title('Explained Variance vs. Number of Components')
-    plt.grid(True)
-    plt.show()
+    # Create a line chart with Plotly
+    fig = go.Figure()
 
+    fig.add_trace(
+        go.Scatter(
+            x=list(range(1, len(cumulative_variance) + 1)),
+            y=cumulative_variance,
+            mode='lines+markers',
+            name='Cumulative Variance',
+            marker=dict(color='blue', size=8),
+            line=dict(color='blue', width=2),
+            hovertemplate='<b>Components: %{x}</b><br>Cumulative Variance: %{y:.3f}<extra></extra>',
+        )
+    )
+
+    # Add a horizontal red dashed line at Cumulative Explained Variance = 0.95
+    fig.add_trace(
+        go.Scatter(
+            x=[0.5, len(cumulative_variance) + 1],
+            y=[0.95, 0.95],
+            mode='lines',
+            name='95% Variance Threshold',
+            line=dict(color='red', width=2, dash='dash'),
+            hoverinfo='none',
+        )
+    )
+
+    # Customize the layout
+    fig.update_layout(
+        title='Explained Variance vs. Number of Components',
+        xaxis=dict(title='Number of Components', tickmode='linear', range=[0.5, len(cumulative_variance) + 1]),
+        yaxis=dict(title='Cumulative Explained Variance', range=[0, 1.05]),
+        template='plotly_white',
+        height=600,
+        width=800,
+        margin=dict(t=50, b=50, l=50, r=50),
+    )
+
+    # Display the plot
+    fig.show()
 
     
 '''
@@ -47,9 +82,6 @@ Clustering Functions
 
 '''
 
-
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
 
 def compute_wcss(reduced_features, cluster_range=range(1, 11)):
     """
@@ -70,24 +102,54 @@ def compute_wcss(reduced_features, cluster_range=range(1, 11)):
         wcss.append(kmeans.inertia_)  # Inertia is the WCSS
     return wcss
 
-
-def plot_elbow_method(wcss, cluster_range=range(1, 11)):
+def plot_elbow_method_interactive(wcss, cluster_range=range(1, 11)):
     """
-    Plots the Elbow Method graph using precomputed WCSS values.
+    Creates an interactive Elbow Method plot using Plotly.
 
     Parameters:
     - wcss (list): A list of Within-Cluster Sum of Squares (WCSS) for each number of clusters.
     - cluster_range (range): The range of clusters tested.
     """
-    plt.figure(figsize=(10, 6))
-    plt.plot(cluster_range, wcss, marker='o', linestyle='-', color='b')
-    plt.xlabel('Number of Clusters')
-    plt.ylabel('Within-Cluster Sum of Squares (WCSS)')
-    plt.title('Elbow Method to Determine Optimal Number of Clusters')
-    plt.xticks(cluster_range)
-    plt.grid(True)
-    plt.show()
+    # Create the elbow plot
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=list(cluster_range),
+            y=wcss,
+            mode='lines+markers',
+            line=dict(color='blue'),
+            marker=dict(size=8, color='blue'),
+            name='WCSS'
+        )
+    )
 
+    # Add a title and axis labels
+    fig.update_layout(
+        title=dict(
+            text='Elbow Method to Determine Optimal Number of Clusters',
+            x=0.5,
+            font=dict(size=18)
+        ),
+        xaxis=dict(
+            title='Number of Clusters',
+            tickmode='linear',
+            tick0=1,
+            dtick=1,
+            showgrid=True,
+            zeroline=False
+        ),
+        yaxis=dict(
+            title='Within-Cluster Sum of Squares (WCSS)',
+            showgrid=True,
+            zeroline=False
+        ),
+        template='plotly_white',
+        height=600,
+        width=1000
+    )
+
+    # Show the interactive plot
+    fig.show()
     
     
 import matplotlib.pyplot as plt
@@ -95,6 +157,9 @@ import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 
 def plot_all_geospatial_kmeans_clusters_with_legend(drought_gdf, title):
+    
+    ## TO DELETE!!!
+
     """
     Plots a static geospatial map showing all K-Means clusters with each cluster in a different color.
     Includes a legend to identify each cluster.
@@ -199,6 +264,9 @@ def plot_hierarchical_dendrogram(reduced_features, method='ward', truncate_mode=
 
 # Function to plot a geospatial map showing all Hierarchical Clusters with a legend
 def plot_all_hierarchical_clusters_with_legend(drought_gdf, title):
+    
+    ## TO DELETE!!!
+    
     """
     Plots a static geospatial map showing all Hierarchical Clusters with each cluster in a different color.
     Includes a legend to identify each cluster.
@@ -259,5 +327,95 @@ def plot_all_hierarchical_clusters_with_legend(drought_gdf, title):
 
 
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.colors as mcolors
+
+def plot_kmeans_and_hierarchical_clusters(drought_gdf, kmeans_title, hierarchical_title):
+    """
+    Plots geospatial maps for both K-Means and Hierarchical Clusters side by side.
+
+    Parameters:
+    - drought_gdf (GeoDataFrame): The GeoDataFrame containing clustering results and geometry.
+    - kmeans_title (str): Title for the K-Means plot.
+    - hierarchical_title (str): Title for the Hierarchical Clustering plot.
+    """
+    # Check if required columns exist in the GeoDataFrame
+    if 'cluster' not in drought_gdf.columns:
+        print("Error: The column 'cluster' does not exist in the GeoDataFrame for K-Means clustering.")
+        return
+    if 'hierarchical_cluster' not in drought_gdf.columns:
+        print("Error: The column 'hierarchical_cluster' does not exist in the GeoDataFrame for Hierarchical clustering.")
+        return
+
+    # Set up the figure with two side-by-side subplots
+    fig, axes = plt.subplots(1, 2, figsize=(20, 10))
+
+    # Plot K-Means clusters
+    drought_gdf.plot(
+        color='lightgrey', linewidth=0.5, ax=axes[0], edgecolor='black'
+    )
+    unique_kmeans_clusters = drought_gdf['cluster'].unique()
+    kmeans_colors = list(mcolors.TABLEAU_COLORS.values()) * (len(unique_kmeans_clusters) // len(mcolors.TABLEAU_COLORS.values()) + 1)
+    kmeans_patches = []
+    for idx, cluster_label in enumerate(unique_kmeans_clusters):
+        color = kmeans_colors[idx]
+        drought_gdf[drought_gdf['cluster'] == cluster_label].plot(
+            color=color, linewidth=0.8, ax=axes[0], edgecolor='black'
+        )
+        kmeans_patches.append(mpatches.Patch(color=color, label=f'Cluster {cluster_label}'))
+    axes[0].legend(handles=kmeans_patches, title="K-Means Clusters", loc='upper left', fontsize='small', title_fontsize='medium')
+    axes[0].set_title(f'K-Means Clusters - {kmeans_title}', fontsize=15)
+    axes[0].axis('off')
+
+    # Plot Hierarchical clusters
+    drought_gdf.plot(
+        color='lightgrey', linewidth=0.5, ax=axes[1], edgecolor='black'
+    )
+    unique_hierarchical_clusters = drought_gdf['hierarchical_cluster'].unique()
+    hierarchical_colors = list(mcolors.TABLEAU_COLORS.values()) * (len(unique_hierarchical_clusters) // len(mcolors.TABLEAU_COLORS.values()) + 1)
+    hierarchical_patches = []
+    for idx, cluster_label in enumerate(unique_hierarchical_clusters):
+        color = hierarchical_colors[idx]
+        drought_gdf[drought_gdf['hierarchical_cluster'] == cluster_label].plot(
+            color=color, linewidth=0.8, ax=axes[1], edgecolor='black'
+        )
+        hierarchical_patches.append(mpatches.Patch(color=color, label=f'Cluster {cluster_label}'))
+    axes[1].legend(handles=hierarchical_patches, title="Hierarchical Clusters", loc='upper left', fontsize='small', title_fontsize='medium')
+    axes[1].set_title(f'Hierarchical Clusters - {hierarchical_title}', fontsize=15)
+    axes[1].axis('off')
+
+    # Adjust layout and display the plots
+    plt.tight_layout()
+    plt.show()
+    
+    
+    
+import geopandas as gpd
+
+def save_regular_cluster_boundaries(gdf, output_path):
+    """
+    Dissolve GeoDataFrame by K-Means clusters and save to a file.
+
+    Parameters:
+    - gdf (GeoDataFrame): Input GeoDataFrame containing K-Means cluster information.
+    - output_path (str): File path to save the dissolved boundaries.
+    """
+    regular_cluster_boundaries = gdf.dissolve(by='cluster', aggfunc='sum').reset_index()
+    regular_cluster_boundaries.to_file(output_path, driver='GeoJSON')
+    print(f"Regular cluster boundaries saved successfully to {output_path}")
+
+
+def save_hierarchical_cluster_boundaries(gdf, output_path):
+    """
+    Dissolve GeoDataFrame by Hierarchical clusters and save to a file.
+
+    Parameters:
+    - gdf (GeoDataFrame): Input GeoDataFrame containing Hierarchical cluster information.
+    - output_path (str): File path to save the dissolved boundaries.
+    """
+    hierarchical_cluster_boundaries = gdf.dissolve(by='hierarchical_cluster', aggfunc='sum').reset_index()
+    hierarchical_cluster_boundaries.to_file(output_path, driver='GeoJSON')
+    print(f"Hierarchical cluster boundaries saved successfully to {output_path}")
 
 

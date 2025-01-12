@@ -1,7 +1,3 @@
-'''
-TODO: Organize!
-'''
-
 import pandas as pd
 from scipy.stats import gamma, norm
 import matplotlib.pyplot as plt
@@ -37,9 +33,6 @@ def calculate_spi_for_regions(zambia_rain_df):
         spi_results_df = pd.concat([spi_results_df, region_spi_df], axis=1)
     return spi_results_df
 
-
-
-import plotly.graph_objects as go
 
 def plot_spi_fixed_layout(spi_results_df):
     """
@@ -126,11 +119,6 @@ def plot_spi_fixed_layout(spi_results_df):
     # Show the plot
     fig.show()
 
-
-
-
-import plotly.express as px
-import plotly.graph_objects as go
 
 def plot_spi_plotly_with_dropdown_and_labels(spi_results_df):
     """

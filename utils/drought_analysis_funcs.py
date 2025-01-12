@@ -1,5 +1,5 @@
-# Imports
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import geopandas as gpd
@@ -8,11 +8,13 @@ from mpld3 import plugins
 import plotly.express as px
 import plotly.graph_objects as go
 import ipywidgets as widgets
-from ipywidgets import Dropdown, Output
+from ipywidgets import Dropdown, Output, IntSlider, VBox, Label, HBox, FloatProgress, interact
 from IPython.display import display, clear_output
 import pymannkendall as mk
 import folium
 import branca
+from ipyleaflet import Map, GeoJSON
+import json
 
 
 ############################################################################################
@@ -37,10 +39,11 @@ def characterize_drought_events(spi_results_df, spi_threshold=-1.0):
 
     for column in spi_results_df.columns:
         # Extract admin2_name, SPI scale, and time scale
-        parts = column.split('_')
-        admin2_name = '_'.join(parts[:-2])  # All parts except the last two
-        spi_scale = int(parts[-2])  # Second-to-last part is the SPI scale
-        time_scale = parts[-1]  # Last part is the time scale (e.g., "month")
+        try:
+            admin2_name, spi_scale, time_scale = column.rsplit('_', 2)  # Split from the end
+            spi_scale = int(spi_scale)  # Convert SPI scale to integer
+        except ValueError:
+            raise ValueError(f"Unexpected column format: {column}")
 
         spi_series = spi_results_df[column].dropna()
         spi_series = spi_series.sort_index()
@@ -49,6 +52,7 @@ def characterize_drought_events(spi_results_df, spi_threshold=-1.0):
         start_date = None
         severity = 0
         drought_event_count = 0
+        months_in_drought = 0
 
         for date, spi_value in spi_series.items():
             if spi_value < spi_threshold:
@@ -57,23 +61,21 @@ def characterize_drought_events(spi_results_df, spi_threshold=-1.0):
                     start_date = date
                     severity = spi_value
                     drought_event_count += 1
+                    months_in_drought = 1  # Start counting the current month
                 else:
                     severity += spi_value
+                    months_in_drought += 1  # Add this month to the drought duration
             else:
                 if in_drought:
                     in_drought = False
                     end_date = date
-                    # Calculate duration using year-month differences
-                    duration = (
-                        pd.Period(end_date, freq='M') - pd.Period(start_date, freq='M')
-                    ).n  # Extract the number of months
-                    intensity = -severity / duration if duration > 0 else 0  # Ensure intensity is positive
+                    intensity = -severity / months_in_drought if months_in_drought > 0 else 0  # Ensure intensity is positive
                     drought_events.append({
                         'admin2_name': admin2_name,
                         'spi_scale': spi_scale,
                         'time_scale': time_scale,
                         'Drought Event': drought_event_count,
-                        'Drought Duration (months)': duration,
+                        'Drought Duration (months)': months_in_drought,
                         'Drought Severity': severity,
                         'Drought Intensity': intensity,
                         'Drought Start': start_date,
@@ -82,16 +84,13 @@ def characterize_drought_events(spi_results_df, spi_threshold=-1.0):
 
         if in_drought:
             end_date = spi_series.index[-1]
-            duration = (
-                pd.Period(end_date, freq='M') - pd.Period(start_date, freq='M')
-            ).n  # Extract the number of months
-            intensity = -severity / duration if duration > 0 else 0  # Ensure intensity is positive
+            intensity = -severity / months_in_drought if months_in_drought > 0 else 0  # Ensure intensity is positive
             drought_events.append({
                 'admin2_name': admin2_name,
                 'spi_scale': spi_scale,
                 'time_scale': time_scale,
                 'Drought Event': drought_event_count,
-                'Drought Duration (months)': duration,
+                'Drought Duration (months)': months_in_drought,
                 'Drought Severity': severity,
                 'Drought Intensity': intensity,
                 'Drought Start': start_date,
@@ -111,130 +110,83 @@ for each SPI (1 or 3) scale
 ############################################################################################
 
 
-def plot_interactive_histogram_plotly(drought_events_df):
+def histogram_drought_metrics(drought_events_df):
     """
-    Creates an interactive histogram or density plot using Plotly for selected drought characteristics.
+    Creates an interactive histogram for drought metrics with bins centered on drought duration values.
 
     Parameters:
     - drought_events_df (pd.DataFrame): The DataFrame containing drought events and their characteristics.
     """
+    # Ensure proper representation of Drought Duration (months) as decimals
+    if 'Drought Duration (months)' in drought_events_df.columns:
+        drought_events_df['Drought Duration (months)'] = drought_events_df[
+            'Drought Duration (months)'
+        ].fillna(0).astype(float)  # Ensure float representation
+
     # Dropdown options
-    admin2_name_options = drought_events_df['admin2_name'].unique().tolist()
+    admin2_name_options = sorted(drought_events_df['admin2_name'].unique().tolist())
     variable_options = ['Drought Duration (months)', 'Drought Severity', 'Drought Intensity']
-    spi_options = drought_events_df['spi_scale'].unique().tolist()
+    spi_options = sorted(drought_events_df['spi_scale'].unique().tolist())
 
-    # Create initial selections
-    initial_admin2 = admin2_name_options[0]
-    initial_variable = variable_options[0]
-    initial_spi = spi_options[0]
-
-    # Filter DataFrame for initial selections
-    filtered_df = drought_events_df[
-        (drought_events_df['admin2_name'] == initial_admin2) &
-        (drought_events_df['spi_scale'] == initial_spi)
-    ]
-
-    fig = go.Figure()
-
-    # Add initial histogram trace
-    fig.add_trace(
-        go.Histogram(
-            x=filtered_df[initial_variable],
-            nbinsx=20,
-            marker=dict(color='skyblue', line=dict(color='black', width=1)),
-            name=f"{initial_admin2} - {initial_variable} (SPI{initial_spi})"
-        )
-    )
-
-    # Add layout
-    fig.update_layout(
-        title=dict(
-            text=f"Distribution of {initial_variable} for {initial_admin2} (SPI{initial_spi})",
-            x=0.5,  # Center the title horizontally
-            y=0.95,  # Slightly above the default position
-            font=dict(size=20)  # Adjust title font size
-        ),
-        xaxis_title=initial_variable,
-        yaxis_title='Frequency',
-        bargap=0.2,
-        template='plotly_white',
-        updatemenus=[
-            # Dropdown for Admin2 Name
-            {
-                "buttons": [
-                    {
-                        "method": "update",
-                        "label": admin2_name,
-                        "args": [
-                            {"x": [drought_events_df[
-                                (drought_events_df['admin2_name'] == admin2_name) &
-                                (drought_events_df['spi_scale'] == initial_spi)
-                            ][initial_variable]]},
-                            {"title": f"Distribution of {initial_variable} for {admin2_name} (SPI{initial_spi})"}
-                        ]
-                    }
-                    for admin2_name in admin2_name_options
-                ],
-                "direction": "down",
-                "showactive": True,
-                "x": 0.1,
-                "y": 1.15,
-                "xanchor": "left",
-                "yanchor": "top"
-            },
-            # Dropdown for SPI Scale
-            {
-                "buttons": [
-                    {
-                        "method": "update",
-                        "label": f"SPI{spi}",
-                        "args": [
-                            {"x": [drought_events_df[
-                                (drought_events_df['admin2_name'] == initial_admin2) &
-                                (drought_events_df['spi_scale'] == spi)
-                            ][initial_variable]]},
-                            {"title": f"Distribution of {initial_variable} for {initial_admin2} (SPI{spi})"}
-                        ]
-                    }
-                    for spi in spi_options
-                ],
-                "direction": "down",
-                "showactive": True,
-                "x": 0.3,
-                "y": 1.15,
-                "xanchor": "left",
-                "yanchor": "top"
-            },
-            # Dropdown for Variable
-            {
-                "buttons": [
-                    {
-                        "method": "update",
-                        "label": variable,
-                        "args": [
-                            {"x": [drought_events_df[
-                                (drought_events_df['admin2_name'] == initial_admin2) &
-                                (drought_events_df['spi_scale'] == initial_spi)
-                            ][variable]]},
-                            {"title": f"Distribution of {variable} for {initial_admin2} (SPI{initial_spi})",
-                             "xaxis.title": variable}
-                        ]
-                    }
-                    for variable in variable_options
-                ],
-                "direction": "down",
-                "showactive": True,
-                "x": 0.5,
-                "y": 1.15,
-                "xanchor": "left",
-                "yanchor": "top"
-            }
+    # Function to filter the data and recreate the plot
+    def update_plot(admin2_name, spi_scale, variable):
+        # Filter the data
+        filtered_df = drought_events_df[
+            (drought_events_df['admin2_name'] == admin2_name) &
+            (drought_events_df['spi_scale'] == spi_scale)
         ]
+
+        if variable == 'Drought Duration (months)':
+            # Define bins centered on drought duration values
+            max_duration = int(filtered_df[variable].max()) if not filtered_df[variable].empty else 1
+            bin_edges = np.arange(0.5, max_duration + 1.5, 1)  # Center bins around duration values (e.g., 1.0, 2.0)
+            fig = go.Figure(
+                data=go.Histogram(
+                    x=filtered_df[variable],
+                    xbins=dict(start=bin_edges[0], end=bin_edges[-1], size=1),  # Bin size = 1
+                    marker=dict(color='skyblue', line=dict(color='black', width=1)),
+                    opacity=0.75
+                )
+            )
+        else:
+            # Default binning for continuous variables
+            fig = go.Figure(
+                data=go.Histogram(
+                    x=filtered_df[variable],
+                    nbinsx=20,
+                    marker=dict(color='skyblue', line=dict(color='black', width=1)),
+                    opacity=0.75
+                )
+            )
+
+        # Update layout
+        fig.update_layout(
+            title=dict(
+                text=f"Distribution of {variable} for {admin2_name} (SPI{spi_scale})",
+                x=0.5,
+                font=dict(size=20)
+            ),
+            xaxis=dict(
+                title=variable,
+                tickformat='.1f' if variable == 'Drought Duration (months)' else '.2f',
+            ),
+            yaxis=dict(
+                title='Frequency',
+            ),
+            bargap=0.15,
+            template='plotly_white',
+        )
+
+        # Show plot
+        fig.show()
+
+    # Use ipywidgets to create dropdowns and interact dynamically
+    interact(
+        update_plot,
+        admin2_name=admin2_name_options,
+        spi_scale=spi_options,
+        variable=variable_options
     )
-
-    # Show the plot
-    fig.show()
-
     
     
 ############################################################################################
@@ -818,140 +770,6 @@ def interactive_drought_analysis_by_paired_region(df):
 
 '''
 
-Temporal heat map function, but may delete 
-
-'''
-
-############################################################################################
-
-    
-'''
-
-def interactive_temporal_heatmap_2year(df):
-    """
-    Create an interactive temporal heatmap for drought characteristics,
-    with dropdown menus for SPI scale and characteristics, grouped by 2-year blocks.
-
-    Parameters:
-    df (pd.DataFrame): The DataFrame containing drought characteristics data.
-
-    Returns:
-    None: Displays the interactive dropdown and plot.
-    """
-    # Dropdown options for drought characteristics
-    characteristic_options = ['Drought Duration (months)', 'Drought Severity', 'Drought Intensity']
-    
-    # Dropdown options for SPI scale
-    spi_options = sorted(df['spi_scale'].unique().tolist())
-    spi_dropdown_options = [f"SPI_{int(spi)}" for spi in spi_options]
-
-    # Create dropdown widgets
-    characteristic_dropdown = widgets.Dropdown(
-        options=characteristic_options,
-        description="Select Characteristic:",
-        style={'description_width': 'initial'}
-    )
-    spi_dropdown = widgets.Dropdown(
-        options=spi_dropdown_options,
-        description="Select SPI Scale:",
-        style={'description_width': 'initial'}
-    )
-
-    # Function to update the plot
-    def update_plot(change=None):
-        clear_output(wait=True)  # Clear the current output
-
-        # Display the dropdowns again
-        display(spi_dropdown, characteristic_dropdown)
-
-        # Get the selected characteristic and SPI scale
-        selected_characteristic = characteristic_dropdown.value
-        selected_spi = int(spi_dropdown.value.split("_")[1])
-
-        # Filter data for the selected SPI scale
-        filtered_df = df[df['spi_scale'] == selected_spi].copy()
-
-        if selected_characteristic not in filtered_df.columns:
-            print(f"Characteristic '{selected_characteristic}' is not available in the DataFrame.")
-            return
-
-        if filtered_df.empty:
-            print(f"No data available for SPI_{selected_spi}.")
-            return
-
-        # Convert 'Drought Start' to datetime and extract 2-year blocks
-        filtered_df['Drought Start'] = pd.to_datetime(filtered_df['Drought Start'], errors='coerce')
-        filtered_df['2-Year Block'] = (
-            (filtered_df['Drought Start'].dt.year // 2) * 2
-        ).astype(str) + " - " + (
-            ((filtered_df['Drought Start'].dt.year // 2) * 2 + 1).astype(str)
-        )
-
-        # Create a pivot table with 'admin2_name' as the index, '2-Year Block' as columns
-        heatmap_data = filtered_df.pivot_table(
-            index='admin2_name',
-            columns='2-Year Block',
-            values=selected_characteristic,
-            aggfunc='sum'  # Compute the sum
-        )
-
-        # Convert the pivot table into a long-format DataFrame for Plotly
-        heatmap_data_long = heatmap_data.reset_index().melt(
-            id_vars='admin2_name',
-            var_name='2-Year Block',
-            value_name=selected_characteristic
-        )
-
-        # Select the appropriate color scale
-        if selected_characteristic in ['Drought Severity', 'Drought Intensity']:
-            color_scale = 'YlOrRd_r'  # Reverse the scale for Severity and Intensity
-        else:
-            color_scale = 'YlOrRd'
-
-        # Plot the heatmap using Plotly Express
-        fig = px.density_heatmap(
-            heatmap_data_long,
-            x='2-Year Block',
-            y='admin2_name',
-            z=selected_characteristic,
-            color_continuous_scale=color_scale,
-            title=f'Temporal Heatmap of {selected_characteristic} Across Regions (SPI_{selected_spi})',
-            labels={'2-Year Block': 'Time (2-Year Block)', 'admin2_name': 'Admin2 Name', selected_characteristic: selected_characteristic}
-        )
-
-        # Update layout for better visualization
-        fig.update_layout(
-            xaxis=dict(
-                title='Time (2-Year Block)',
-                automargin=True,  # Adjust margins dynamically
-            ),
-            yaxis=dict(
-                title='Admin2 Name'
-            ),
-            coloraxis_colorbar=dict(title=selected_characteristic),
-            margin=dict(t=50, l=50, r=50, b=100),
-            height=600,  # Adjusted height for better readability
-            dragmode='pan',  # Enable panning for horizontal scrolling
-        )
-
-        # Show the plot
-        fig.show()
-
-    # Attach the update function to both dropdowns
-    characteristic_dropdown.observe(update_plot, names="value")
-    spi_dropdown.observe(update_plot, names="value")
-
-    # Display the dropdowns
-    display(spi_dropdown, characteristic_dropdown)
-
-    # Trigger the initial plot
-    update_plot()
-'''    
- 
-############################################################################################
-
-'''
-
 Plots six different maps: Average drought, severity, and intensity for SPI1 and SPI3
 
 -This function is used for the initial analysis, and than for the clustering analysis, where
@@ -1183,8 +1001,6 @@ that are experiencing a drought in a particular month
 ############################################################################################
 
 
-
-
 def create_hover_heatmap_with_custom_colors(df, title="Interactive Heatmap", ylabel="Hierarchical Cluster", index_col="hierarchical_cluster"):
     """
     Create an interactive heatmap with styled hover tooltips and a custom color scheme.
@@ -1209,7 +1025,7 @@ def create_hover_heatmap_with_custom_colors(df, title="Interactive Heatmap", yla
     df = df.set_index(index_col)
 
     # Create the heatmap with a custom color map
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=(12, 6))
     sns.heatmap(
         df, 
         ax=ax, 
@@ -1244,44 +1060,47 @@ def create_hover_heatmap_with_custom_colors(df, title="Interactive Heatmap", yla
     return mpld3.fig_to_html(fig)
 
 
-
-
+############################################################################################
 
 '''
+'''
 
-# TODO: move these to top of script
-from ipyleaflet import Map, GeoJSON, LayersControl
-from ipywidgets import IntSlider, VBox, Label
-import json
+############################################################################################
 
-def create_time_slider_map_with_boundaries(spi_gdf, cluster_boundaries, title="Time Slider Map"):
+
+def simplify_geometry(gdf, tolerance=0.01):
     """
-    Create a time slider map using ipyleaflet with added cluster boundaries.
-
+    Simplify geometries for faster rendering.
+    
     Parameters:
-    - spi_gdf (GeoDataFrame): Input GeoDataFrame (e.g., zambia_spi_1_df or zambia_spi_3_df) with 'year_month' and 'indicator' columns.
-    - cluster_boundaries (GeoDataFrame): GeoDataFrame containing the cluster boundaries (e.g., hierarchical or regular clusters).
-    - title (str): Title for the map display.
-
+    - gdf (GeoDataFrame): The GeoDataFrame to simplify.
+    - tolerance (float): The tolerance level for simplification.
+    
     Returns:
-    - VBox: A widget containing the map, slider, and title label.
+    - GeoDataFrame: Simplified GeoDataFrame.
     """
-    # Step 1: Reproject GeoDataFrames to WGS84 (EPSG:4326)
-    spi_gdf = spi_gdf.to_crs(epsg=4326)
-    cluster_boundaries = cluster_boundaries.to_crs(epsg=4326)
+    gdf['geometry'] = gdf['geometry'].simplify(tolerance, preserve_topology=True)
+    return gdf
 
-    # Ensure 'year_month' is converted to a string
-    spi_gdf['year_month'] = spi_gdf['year_month'].astype(str)
-
-    # Step 2: Prepare GeoJSON layers for each time step
+def prepare_geojson_data_with_progress(gdf, dates, progress_bar):
+    """
+    Prepare GeoJSON data with progress tracking.
+    
+    Parameters:
+    - gdf (GeoDataFrame): The GeoDataFrame containing SPI data.
+    - dates (list): List of unique dates (year_month).
+    - progress_bar (FloatProgress): Widget to track progress.
+    
+    Returns:
+    - dict: Dictionary of GeoJSON data for each date.
+    """
     geojson_dict = {}
-    all_dates = spi_gdf['year_month'].unique()
+    total = len(dates)
 
-    for date in all_dates:
-        # Filter data for the specific date
-        gdf_date = spi_gdf[spi_gdf['year_month'] == date]
-        
-        # Convert to GeoJSON and add a custom style for each feature
+    for i, date in enumerate(dates):
+        gdf_date = gdf[gdf['year_month'] == date]
+        if gdf_date.empty:
+            continue  # Skip if no data for this date
         geojson_data = json.loads(gdf_date.to_json())
         for feature in geojson_data["features"]:
             feature["properties"]["style"] = {
@@ -1291,57 +1110,86 @@ def create_time_slider_map_with_boundaries(spi_gdf, cluster_boundaries, title="T
                 "weight": 1,
             }
         geojson_dict[date] = geojson_data
+        
+        # Update progress bar
+        progress_bar.value = (i + 1) / total * 100
 
-    # Step 3: Create the ipyleaflet map
+    return geojson_dict
+
+def create_time_slider_map_with_boundaries(spi_gdf, cluster_boundaries, title="Time Slider Map"):
+    """
+    Create an interactive time-slider map with boundaries for SPI data.
+    
+    Parameters:
+    - spi_gdf (GeoDataFrame): SPI data with geometry.
+    - cluster_boundaries (GeoDataFrame): Cluster boundaries as GeoDataFrame.
+    - title (str): Title of the map.
+    
+    Returns:
+    - VBox: Interactive map with slider and label.
+    """
+    # Ensure valid geometries
+    spi_gdf = spi_gdf[spi_gdf['geometry'].notnull()]
+    cluster_boundaries = cluster_boundaries[cluster_boundaries['geometry'].notnull()]
+
+    # Reproject and simplify geometries
+    spi_gdf = simplify_geometry(spi_gdf.to_crs(epsg=4326))
+    cluster_boundaries = simplify_geometry(cluster_boundaries.to_crs(epsg=4326))
+
+    # Ensure year_month is a string
+    spi_gdf['year_month'] = spi_gdf['year_month'].astype(str)
+    all_dates = spi_gdf['year_month'].unique()
+
+    # Add a progress bar
+    progress_bar = FloatProgress(value=0, min=0, max=100, description="Processing:")
+    label = Label(value="Preparing GeoJSON data...")
+    progress_box = HBox([progress_bar, label])
+
+    display(progress_box)
+
+    # Prepare GeoJSON layers with progress tracking
+    geojson_dict = prepare_geojson_data_with_progress(spi_gdf, all_dates, progress_bar)
+
+    # Remove progress bar after processing
+    progress_bar.close()
+    label.value = "GeoJSON data preparation completed."
+
+    # Initialize the map
     m = Map(center=(-15, 30), zoom=6)
 
-    # Step 4: Add GeoJSON layers for SPI data
-    geojson_layers = {}
-    for date, geojson_data in geojson_dict.items():
-        geojson_layer = GeoJSON(data=geojson_data)
-        geojson_layers[date] = geojson_layer
-
-    # Step 5: Add cluster boundaries layer
+    # Add cluster boundaries
     cluster_geojson = json.loads(cluster_boundaries.to_json())
     for feature in cluster_geojson["features"]:
         feature["properties"]["style"] = {
-            "color": "blue",  # Boundary color
-            "weight": 3,      # Thicker border
-            "fillOpacity": 0, # Transparent fill
+            "color": "blue",
+            "weight": 3,
+            "fillOpacity": 0,
         }
     cluster_boundaries_layer = GeoJSON(data=cluster_geojson)
+    m.add_layer(cluster_boundaries_layer)
 
-    m.add_layer(cluster_boundaries_layer)  # Add the boundaries layer to the map
+    # Create a slider for time steps
+    slider = IntSlider(value=0, min=0, max=len(all_dates) - 1, step=1, description="Time", continuous_update=False)
+    map_label = Label(value=f"{title}: Showing {all_dates[0]}")
 
-    # Step 6: Add a slider to toggle layers
-    slider = IntSlider(
-        value=0,
-        min=0,
-        max=len(all_dates) - 1,
-        step=1,
-        description="Time",
-        continuous_update=False
-    )
-
-    label = Label(value=f"{title}: Showing {all_dates[0]}")
-
+    # Function to update the map based on slider value
     def update_map(change):
-        # Clear existing layers
-        for layer in geojson_layers.values():
-            if layer in m.layers:
-                m.remove_layer(layer)
-        
-        # Add the selected layer
         selected_date = all_dates[slider.value]
-        m.add_layer(geojson_layers[selected_date])
-        label.value = f"{title}: Showing {selected_date}"
+
+        # Remove previous SPI layers
+        for layer in m.layers:
+            if isinstance(layer, GeoJSON) and layer != cluster_boundaries_layer:
+                m.remove_layer(layer)
+
+        # Add the new SPI layer
+        geojson_layer = GeoJSON(data=geojson_dict[selected_date])
+        m.add_layer(geojson_layer)
+        map_label.value = f"{title}: Showing {selected_date}"
 
     slider.observe(update_map, names="value")
+    update_map(None)  # Initialize map with the first time step
 
-    # Step 7: Display the map with slider
-    update_map(None)  # Initialize with the first layer
-    return VBox([m, slider, label])
+    return VBox([m, slider, map_label])
 
 
-''' 
-    
+

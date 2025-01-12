@@ -8,7 +8,11 @@ import plotly.graph_objects as go
 from scipy.stats import gamma, kstest
 import pandas as pd
 import geopandas as gpd
-
+import matplotlib.pyplot as plt
+from IPython.display import display, clear_output
+import ipywidgets as widgets
+from scipy.stats import gamma, probplot
+import folium
 
 
 def interactive_precip_histogram(dataframe, group_column, value_column):
@@ -125,51 +129,6 @@ def perform_ks_test(zambia_rain_df):
     return results_gdf
 
     
-
-'''
-def perform_ks_test(zambia_rain_df):
-    """
-    Perform Kolmogorov-Smirnov test for each admin2_name in the dataset.
-    
-    Parameters:
-    zambia_rain_df (GeoDataFrame): The GeoDataFrame containing precipitation data and geometries.
-
-    Returns:
-    GeoDataFrame: A GeoDataFrame with columns ['admin2_name', 'p_value', 'status', 'geometry'].
-    """
-    results = []
-
-    # Loop through each admin2_name
-    for admin2_name in zambia_rain_df['admin2_name'].unique():
-        # Get the precipitation data for the current admin2_name
-        data = zambia_rain_df[zambia_rain_df['admin2_name'] == admin2_name]['precipitation'].dropna()
-
-        # Skip if there's not enough data
-        if len(data) < 2:
-            continue
-
-        # Fit a gamma distribution to the data
-        shape, loc, scale = gamma.fit(data, floc=0)  # floc=0 ensures non-negative values
-
-        # Perform Kolmogorov-Smirnov test
-        _, p_value = kstest(data, gamma(shape, loc, scale).cdf)
-
-        # Categorize the result based on p-value
-        status = "Passed" if p_value > 0.05 else "Failed"
-
-        # Get the geometry for this region
-        geometry = zambia_rain_df[zambia_rain_df['admin2_name'] == admin2_name].iloc[0]['geometry']
-
-        # Append to results
-        results.append({"admin2_name": admin2_name, "p_value": p_value, "status": status, "geometry": geometry})
-
-    # Convert results to a GeoDataFrame
-    results_gdf = gpd.GeoDataFrame(results, geometry="geometry")
-    return results_gdf
-'''
-
-
-
 def generate_interactive_table(results_df):
     """
     Generate an interactive Plotly table for passing and failing areas.
@@ -235,11 +194,7 @@ def generate_interactive_table(results_df):
     # Show the figure
     fig.show()
 
-
-
     
-import folium
-
 def map_ks_test_results(results_gdf):
     """
     Create an interactive map to visualize the KS test results.
@@ -272,12 +227,6 @@ def map_ks_test_results(results_gdf):
 
     return m
     
-
-    
-import matplotlib.pyplot as plt
-from IPython.display import display, clear_output
-import ipywidgets as widgets
-from scipy.stats import gamma, probplot
 
 def create_dynamic_qq_plot(zambia_rain_df):
     """

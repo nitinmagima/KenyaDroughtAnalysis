@@ -83,6 +83,11 @@ def preprocess_rain_data(df, admin_col='admin2_name', year_col='year', month_col
 ############################################################################################
 
 '''
+
+Function to normalize precipitation data
+
+-Used for PCA
+
 '''
 
 ############################################################################################
@@ -111,81 +116,49 @@ def normalize_precipitation_data(df, feature_range=(0, 1)):
 
     return df_normalized
 
-
-def drought_indicator_df(spi_results_df, drought_gdf, spi_threshold=-1.0):
-    """
-    Creates a flat DataFrame of drought indicators for each admin2_name and year_month,
-    with extracted SPI scale, geometry, and cluster information.
-
-    Parameters:
-    - spi_results_df (pd.DataFrame): SPI results DataFrame.
-    - drought_gdf (GeoDataFrame): GeoDataFrame containing geometry, cluster, and administrative unit information.
-    - spi_threshold (float): SPI threshold for defining drought (default is -1.0).
-
-    Returns:
-    - pd.DataFrame: Flat DataFrame with drought indicators, geometry, and clusters.
-    """
-    # Create an empty list to hold the indicator rows
-    drought_indicators = []
-
-    for column in spi_results_df.columns:
-        admin2_name, time_scale = column.rsplit('_', 1)
-        spi_series = spi_results_df[column].dropna()
-
-        # Extract spi_scale and clean admin2_name
-        *admin2_parts, spi_scale = admin2_name.split('_')
-        admin2_name_cleaned = '_'.join(admin2_parts)
-
-        for date, spi_value in spi_series.items():
-            # Convert the date to datetime if it's not already
-            if not isinstance(date, pd.Timestamp):
-                date = pd.to_datetime(date)
-            indicator = 1 if spi_value < spi_threshold else 0
-            drought_indicators.append({
-                'year_month': date.strftime('%Y-%m'),
-                'admin2_name': admin2_name_cleaned,
-                'spi_scale': int(spi_scale),
-                'indicator': indicator
-            })
-
-    # Convert the list of indicators to a DataFrame
-    drought_indicator_df = pd.DataFrame(drought_indicators)
-
-    # Merge with the GeoDataFrame to include the geometry and cluster information
-    drought_indicator_df = drought_indicator_df.merge(
-        drought_gdf[['admin2_name', 'geometry', 'cluster', 'hierarchical_cluster']],
-        on='admin2_name',  # Use admin2_name directly
-        how='left'
-    )
-
-    return drought_indicator_df
-
-
+############################################################################################
 
 '''
-def drought_indicator_df(spi_results_df, drought_gdf, spi_threshold=-1.0):
+
+For creating SPI1 and SPI3 drought indicator dataframes
+
+'''
+
+############################################################################################
+
+def preprocess_drought_data(spi_results_df, drought_gdf, spi_threshold=-1.0, spi_scale=None):
     """
-    Creates a flat DataFrame of drought indicators for each admin2_name and year_month,
+    Creates a GeoDataFrame of drought indicators for each admin2_name and year_month,
     with extracted SPI scale, geometry, and cluster information.
 
     Parameters:
     - spi_results_df (pd.DataFrame): SPI results DataFrame.
     - drought_gdf (GeoDataFrame): GeoDataFrame containing geometry, cluster, and administrative unit information.
     - spi_threshold (float): SPI threshold for defining drought (default is -1.0).
+    - spi_scale (int or None): Filter for a specific SPI scale (e.g., 1, 3). If None, includes all scales.
 
     Returns:
-    - pd.DataFrame: Flat DataFrame with drought indicators, geometry, and clusters.
+    - GeoDataFrame: GeoDataFrame with drought indicators, geometry, and clusters.
     """
     # Create an empty list to hold the indicator rows
     drought_indicators = []
 
     for column in spi_results_df.columns:
-        admin2_name, time_scale = column.rsplit('_', 1)
-        spi_series = spi_results_df[column].dropna()
+        # Split the column name to extract admin2_name and SPI scale
+        if not column.endswith("_month"):
+            continue  # Skip columns that do not match the expected format
+        admin2_name, spi_scale_str = column.rsplit('_', 2)[0:2]  # Handle the '_month' suffix
+        try:
+            spi_scale_value = int(spi_scale_str)
+        except ValueError:
+            continue  # Skip if SPI scale is not a valid integer
 
-        # Extract spi_scale and clean admin2_name
-        *admin2_parts, spi_scale = admin2_name.split('_')
-        admin2_name_cleaned = '_'.join(admin2_parts)
+        # Filter by SPI scale if provided
+        if spi_scale is not None and spi_scale_value != spi_scale:
+            continue
+
+        # Get the SPI series for this column
+        spi_series = spi_results_df[column].dropna()
 
         for date, spi_value in spi_series.items():
             # Convert the date to datetime if it's not already
@@ -194,60 +167,61 @@ def drought_indicator_df(spi_results_df, drought_gdf, spi_threshold=-1.0):
             indicator = 1 if spi_value < spi_threshold else 0
             drought_indicators.append({
                 'year_month': date.strftime('%Y-%m'),
-                'admin2_name': admin2_name_cleaned,
-                'spi_scale': int(spi_scale),
+                'admin2_name': admin2_name,
+                'spi_scale': spi_scale_value,
                 'indicator': indicator
             })
 
     # Convert the list of indicators to a DataFrame
     drought_indicator_df = pd.DataFrame(drought_indicators)
 
+    # Debug: Check if drought_indicators is populated
+    if drought_indicator_df.empty:
+        raise ValueError("No drought indicators were generated. Check input data or logic.")
+
+    # Correct formatting of admin2_name before merging
+    drought_indicator_df['admin2_name'] = drought_indicator_df['admin2_name'].replace({
+        "Kapiri_Mposhi": "Kapiri-Mposhi",
+        "Itezhi_tezhi": "Itezhi-tezhi"
+    })
+
     # Merge with the GeoDataFrame to include the geometry and cluster information
+    if 'admin2_name' not in drought_gdf.columns:
+        raise KeyError("'admin2_name' column not found in drought_gdf.")
+    
+    drought_gdf['admin2_name'] = drought_gdf['admin2_name'].replace({
+        "Kapiri_Mposhi": "Kapiri-Mposhi",
+        "Itezhi_tezhi": "Itezhi-tezhi"
+    })
+
     drought_indicator_df = drought_indicator_df.merge(
-        drought_gdf[['ADM2_NAME', 'geometry', 'cluster', 'hierarchical_cluster']],
-        left_on='admin2_name',
-        right_on='ADM2_NAME',
+        drought_gdf[['admin2_name', 'geometry', 'cluster', 'hierarchical_cluster']],
+        on='admin2_name',
         how='left'
     )
 
-    # Drop the redundant ADM2_NAME column from the result
-    drought_indicator_df.drop(columns=['ADM2_NAME'], inplace=True)
+    # Convert the result to a GeoDataFrame and set the CRS
+    drought_indicator_gdf = gpd.GeoDataFrame(
+        drought_indicator_df,
+        geometry=drought_indicator_df['geometry'],
+        crs="EPSG:4326"  # Set CRS to WGS84 (latitude/longitude)
+    )
 
-    return drought_indicator_df
+    # Remove duplicates: Ensure each admin2_name and year_month appears only once
+    drought_indicator_gdf = drought_indicator_gdf.drop_duplicates(subset=['admin2_name', 'year_month', 'spi_scale'])
 
-'''    
-    
+    return drought_indicator_gdf
 
-def preprocess_drought_data(df, selected_spi_scale):
-    """
-    Preprocess the drought data by:
-    - Dropping rows with NaN geometries.
-    - Filtering the DataFrame for a specific SPI scale.
+############################################################################################
 
-    Parameters:
-    - df (pd.DataFrame or gpd.GeoDataFrame): The drought data.
-    - selected_spi_scale (int): The SPI scale to filter the data.
+'''
 
-    Returns:
-    - gpd.GeoDataFrame: Processed GeoDataFrame.
-    """
-    # Ensure the input is a GeoDataFrame
-    if not isinstance(df, gpd.GeoDataFrame):
-        if 'geometry' not in df.columns:
-            raise ValueError("The input DataFrame must have a 'geometry' column to be converted to a GeoDataFrame.")
-        gdf = gpd.GeoDataFrame(df, geometry=df['geometry'])
-    else:
-        gdf = df
+For calculating the percentage of admin2 zones that experienced a drought in a given month
+in a given K-means or Hiearchical cluster
 
-    # Drop rows with NaN geometries
-    gdf = gdf[gdf['geometry'].notnull()]
+'''
 
-    # Filter for the selected SPI scale
-    gdf = gdf[gdf['spi_scale'] == selected_spi_scale]
-
-    return gdf
-
-    
+############################################################################################
 
 def calculate_drought_stats(df, group_col):
     """
@@ -318,3 +292,5 @@ def calculate_drought_stats(df, group_col):
     percentage_droughts_df = percentage_droughts_df.reset_index()
 
     return total_droughts_df, percentage_droughts_df
+
+

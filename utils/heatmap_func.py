@@ -1,4 +1,3 @@
-
 import os
 
 def save_html_heatmap(html_content, folder_name, output_file_name):

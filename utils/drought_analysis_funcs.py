@@ -24,16 +24,19 @@ import json
 ############################################################################################
 
 
-def characterize_drought_events(spi_results_df, spi_threshold=-1.0):
+def characterize_drought_events(spi_results_df, spi_threshold=-1.0, geometry_df=None):
     """
-    Characterize drought events based on SPI values for each region (admin2_name), time scale, and SPI scale.
+    Characterize drought events based on SPI values for each region (admin2_name), SPI scale, and time scale.
+    A drought starts when SPI is below -1.0 for two consecutive months, with the second month counted as the start.
+    The drought ends when SPI becomes positive (SPI > 0).
 
     Parameters:
     spi_results_df (pd.DataFrame): Input DataFrame with SPI values for different regions and time scales.
-    spi_threshold (float): Threshold for defining a drought event (default is -1.0 for moderate drought).
+    spi_threshold (float): Threshold for defining the start of a drought event (default is -1.0).
+    geometry_df (GeoDataFrame, optional): GeoDataFrame containing geometry information for admin2 zones.
 
     Returns:
-    pd.DataFrame: Output DataFrame containing drought event details for each region, SPI scale, and time scale.
+    GeoDataFrame: Output GeoDataFrame containing drought event details for each region, SPI scale, and time scale.
     """
     drought_events = []
 
@@ -54,37 +57,50 @@ def characterize_drought_events(spi_results_df, spi_threshold=-1.0):
         drought_event_count = 0
         months_in_drought = 0
 
+        prev_below_threshold = False  # Track whether the previous month was below -1.0
+
         for date, spi_value in spi_series.items():
-            if spi_value < spi_threshold:
-                if not in_drought:
-                    in_drought = True
-                    start_date = date
-                    severity = spi_value
-                    drought_event_count += 1
-                    months_in_drought = 1  # Start counting the current month
-                else:
-                    severity += spi_value
-                    months_in_drought += 1  # Add this month to the drought duration
+            if spi_value < -1.0:  # Condition: SPI must be below -1.0
+                if prev_below_threshold:  # Two consecutive months below -1.0
+                    if not in_drought:
+                        # Start the drought
+                        in_drought = True
+                        start_date = date
+                        severity = spi_value
+                        months_in_drought = 1
+                    else:
+                        severity += spi_value
+                        months_in_drought += 1
+                prev_below_threshold = True  # Current month is below -1.0
             else:
+                prev_below_threshold = False  # Reset if SPI is not below -1.0
+
                 if in_drought:
-                    in_drought = False
-                    end_date = date
-                    intensity = -severity / months_in_drought if months_in_drought > 0 else 0  # Ensure intensity is positive
-                    drought_events.append({
-                        'admin2_name': admin2_name,
-                        'spi_scale': spi_scale,
-                        'time_scale': time_scale,
-                        'Drought Event': drought_event_count,
-                        'Drought Duration (months)': months_in_drought,
-                        'Drought Severity': severity,
-                        'Drought Intensity': intensity,
-                        'Drought Start': start_date,
-                        'Drought End': end_date
-                    })
+                    # End the drought if SPI > 0
+                    if spi_value > 0:
+                        in_drought = False
+                        drought_event_count += 1
+                        end_date = date
+                        intensity = -severity / months_in_drought if months_in_drought > 0 else 0
+                        drought_events.append({
+                            'admin2_name': admin2_name,
+                            'spi_scale': spi_scale,
+                            'time_scale': time_scale,
+                            'Drought Event': drought_event_count,
+                            'Drought Duration (months)': months_in_drought,
+                            'Drought Severity': severity,
+                            'Drought Intensity': intensity,
+                            'Drought Start': start_date,
+                            'Drought End': end_date
+                        })
+                        severity = 0
+                        months_in_drought = 0
 
         if in_drought:
+            # Handle a drought that continues until the end of the series
             end_date = spi_series.index[-1]
-            intensity = -severity / months_in_drought if months_in_drought > 0 else 0  # Ensure intensity is positive
+            drought_event_count += 1
+            intensity = -severity / months_in_drought if months_in_drought > 0 else 0
             drought_events.append({
                 'admin2_name': admin2_name,
                 'spi_scale': spi_scale,
@@ -97,8 +113,30 @@ def characterize_drought_events(spi_results_df, spi_threshold=-1.0):
                 'Drought End': end_date
             })
 
-    return pd.DataFrame(drought_events)
+        # If no drought was detected for this admin2_name, add a default entry
+        if drought_event_count == 0:
+            drought_events.append({
+                'admin2_name': admin2_name,
+                'spi_scale': spi_scale,
+                'time_scale': time_scale,
+                'Drought Event': 0,
+                'Drought Duration (months)': 0,
+                'Drought Severity': 0,
+                'Drought Intensity': 0,
+                'Drought Start': None,
+                'Drought End': None
+            })
 
+    drought_events_df = pd.DataFrame(drought_events)
+
+    # Merge with geometry if provided
+    if geometry_df is not None:
+        drought_events_df = drought_events_df.merge(
+            geometry_df[['admin2_name', 'geometry']], on='admin2_name', how='left'
+        )
+        drought_events_df = gpd.GeoDataFrame(drought_events_df, geometry='geometry', crs=geometry_df.crs)
+
+    return drought_events_df
 
 ############################################################################################
 
@@ -199,7 +237,8 @@ def histogram_drought_metrics(drought_events_df):
 # 1. Get Drought Event Frequency for admin2
 def get_drought_event_frequency(df):
     """
-    Computes the drought event frequency grouped by admin2_name and spi_scale.
+    Computes the drought event frequency grouped by admin2_name and spi_scale, 
+    excluding zones where Drought Event is 0.
 
     Parameters:
     - df (GeoDataFrame): Input GeoDataFrame containing 'admin2_name', 'spi_scale', 'Drought Event', and 'geometry'.
@@ -208,13 +247,23 @@ def get_drought_event_frequency(df):
     - GeoDataFrame: A GeoDataFrame with 'admin2_name', 'spi_scale', 'Drought Event Frequency', and 'geometry',
       ensuring the CRS is set to EPSG:4326.
     """
-    # Group data to compute the frequency
+    # Group data to compute the frequency of non-zero drought events
     frequency_df = (
-        df.groupby(['admin2_name', 'spi_scale'])
+        df[df['Drought Event'] > 0]  # Exclude Drought Event = 0
+        .groupby(['admin2_name', 'spi_scale'])
         .agg({'Drought Event': 'nunique', 'geometry': 'first'})
         .reset_index()
         .rename(columns={'Drought Event': 'Drought Event Frequency'})
     )
+    
+    # Add back zones with no drought events and set their frequency to 0
+    all_zones = df[['admin2_name', 'spi_scale', 'geometry']].drop_duplicates()
+    frequency_df = all_zones.merge(
+        frequency_df,
+        on=['admin2_name', 'spi_scale', 'geometry'],
+        how='left'
+    )
+    frequency_df['Drought Event Frequency'] = frequency_df['Drought Event Frequency'].fillna(0).astype(int)
     
     # Convert to GeoDataFrame and ensure CRS
     frequency_gdf = gpd.GeoDataFrame(frequency_df, geometry='geometry')
@@ -765,6 +814,93 @@ def interactive_drought_analysis_by_paired_region(df):
     display(characteristic_dropdown, aggregation_dropdown)
     update_plot()
     
+    
+############################################################################################
+
+'''
+Interactive table to show drought characterstics (averages)
+'''
+
+############################################################################################
+
+def generate_average_characteristics_table(spi1_averages, spi3_averages):
+    """
+    Generate an interactive Plotly table for average drought characteristics by SPI scale,
+    toggling between SPI1 and SPI3, and showing average values for each admin2_name rounded to the nearest thousandth.
+
+    Parameters:
+    spi1_averages (GeoDataFrame): GeoDataFrame containing average drought characteristics for SPI1.
+    spi3_averages (GeoDataFrame): GeoDataFrame containing average drought characteristics for SPI3.
+
+    Returns:
+    None: Displays the interactive Plotly table.
+    """
+    # Combine the SPI1 and SPI3 data
+    combined_df = pd.concat([spi1_averages, spi3_averages], ignore_index=True)
+
+    # Round numeric columns to the nearest thousandth
+    numeric_cols = ['Drought Duration (months)', 'Drought Severity', 'Drought Intensity']
+    combined_df[numeric_cols] = combined_df[numeric_cols].round(3)
+
+    # Separate data for SPI1 and SPI3
+    spi_scales = combined_df['spi_scale'].unique()
+    tables = {scale: combined_df[combined_df['spi_scale'] == scale] for scale in spi_scales}
+
+    # Create a figure
+    fig = go.Figure()
+
+    # Add tables for each SPI scale as separate traces
+    for scale in spi_scales:
+        table_data = tables[scale]
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=["Admin2 Name", "Drought Duration (months)", "Drought Severity", "Drought Intensity"],
+                    align="left",
+                    fill_color="lightblue",
+                    font=dict(color="black", size=12),
+                ),
+                cells=dict(
+                    values=[
+                        table_data['admin2_name'],
+                        table_data['Drought Duration (months)'],
+                        table_data['Drought Severity'],
+                        table_data['Drought Intensity'],
+                    ],
+                    align="left",
+                    fill_color="white",
+                    font=dict(color="black", size=11),
+                ),
+                visible=(scale == spi_scales[0])  # Show only the first SPI scale by default
+            )
+        )
+
+    # Add dropdown to toggle between SPI scales
+    fig.update_layout(
+        updatemenus=[
+            dict(
+                buttons=[
+                    dict(
+                        label=f"SPI {scale}",
+                        method="update",
+                        args=[
+                            {"visible": [i == scale for i in spi_scales]},
+                            {"title": f"Average Characteristics for SPI {scale}"},
+                        ],
+                    )
+                    for scale in spi_scales
+                ],
+                direction="down",
+                showactive=True,
+            )
+        ],
+        title=f"Average Characteristics for SPI {spi_scales[0]}",
+        title_x=0.5,  # Center the title
+    )
+
+    # Display the figure
+    fig.show()
+
 
 ############################################################################################
 
@@ -780,84 +916,133 @@ cluster boundaries (either k-means or hierarchical) or passed in
 ############################################################################################
 
 
-def map_drought_characteristics_by_spi(drought_gdf, cluster_boundaries_df=None):
+def map_drought_characteristics(
+    gdf1,
+    gdf2,
+    cluster_boundaries_df=None,
+    drought_diff_df=None,
+    plot_type="averages",
+):
     """
-    Plots geospatial maps for drought characteristics averaged for each admin2 region,
-    with consistent color scales across all characteristics. Optionally overlays cluster boundaries.
+    Plots geospatial maps for drought characteristics averaged for each admin2 region 
+    or the difference from cluster averages, with consistent color scales.
 
     Parameters:
-    - drought_gdf (GeoDataFrame): The GeoDataFrame containing the drought and geospatial data.
-    - cluster_boundaries_df (GeoDataFrame, optional): GeoDataFrame containing cluster boundaries (e.g., k-means or hierarchical).
-      If None, no additional boundaries will be overlaid.
+    - gdf1 (GeoDataFrame): GeoDataFrame for SPI 1 averages by admin2 (required for 'averages' plot).
+    - gdf2 (GeoDataFrame): GeoDataFrame for SPI 3 averages by admin2 (required for 'averages' plot).
+    - cluster_boundaries_df (GeoDataFrame, optional): GeoDataFrame containing cluster boundaries.
+    - drought_diff_df (GeoDataFrame, optional): GeoDataFrame containing pre-calculated drought differences 
+      (required for 'differences' plot).
+    - plot_type (str): "averages" (default) to plot average characteristics or "differences" to plot differences.
+
+    Raises:
+    - ValueError: If required inputs for the selected plot type are missing.
     """
-    # Define the characteristics, SPI scales, and their color scale limits
-    drought_characteristics = ['Drought Duration (months)', 'Drought Severity', 'Drought Intensity']
-    spi_scales = [1, 3]
-    color_scale_limits = {
-        'Drought Duration (months)': (0, 7),
-        'Drought Severity': (-6, 0),
-        'Drought Intensity': (0, 2),  # Same scale, same color as duration
+    if plot_type not in ["averages", "differences"]:
+        raise ValueError("plot_type must be 'averages' or 'differences'.")
+
+    # Combine possible drought characteristics
+    drought_characteristics = {
+        "averages": [
+            "Drought Duration (months)",
+            "Drought Severity",
+            "Drought Intensity",
+            "Drought Duration (months)_admin2",
+            "Drought Severity_admin2",
+            "Drought Intensity_admin2",
+        ],
+        "differences": {
+            "Drought Duration (months)": "Drought Duration Diff",
+            "Drought Severity": "Drought Severity Diff",
+            "Drought Intensity": "Drought Intensity Diff",
+        },
     }
 
+    if plot_type == "averages":
+        # Validate inputs
+        if gdf1 is None or gdf2 is None:
+            raise ValueError("gdf1 and gdf2 are required for 'averages' plot.")
+        spi_dataframes = {1: gdf1, 3: gdf2}
+        available_characteristics = [
+            char
+            for char in drought_characteristics["averages"]
+            if char in gdf1.columns and char in gdf2.columns
+        ]
+        color_scale_limits = {
+            "Drought Duration (months)": (0, 4),
+            "Drought Severity": (-3, 0),
+            "Drought Intensity": (0, 4),
+            "Drought Duration (months)_admin2": (0, 4),
+            "Drought Severity_admin2": (-3, 0),
+            "Drought Intensity_admin2": (0, 4),
+        }
+        border_color = "blue"  # Set border color for averages
+    elif plot_type == "differences":
+        # Validate inputs
+        if drought_diff_df is None:
+            raise ValueError("drought_diff_df is required for 'differences' plot.")
+        spi_dataframes = {1: drought_diff_df[drought_diff_df["spi_scale"] == 1], 3: drought_diff_df[drought_diff_df["spi_scale"] == 3]}
+        available_characteristics = list(drought_characteristics["differences"].keys())
+        color_scale_limits = {char: (-3, 3) for char in available_characteristics}
+        border_color = "black"  # Set border color for differences
+
     # Set up the figure
-    fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(18, 10))
+    fig, axes = plt.subplots(
+        nrows=2, ncols=len(available_characteristics), figsize=(6 * len(available_characteristics), 10)
+    )
     fig.subplots_adjust(hspace=0.2, wspace=0.3)  # Adjust spacing
 
-    for i, spi_scale in enumerate(spi_scales):
-        # Filter for the current SPI scale
-        filtered_gdf = drought_gdf[drought_gdf['spi_scale'] == spi_scale].copy()
+    for i, (spi_scale, spi_gdf) in enumerate(spi_dataframes.items()):
+        if not isinstance(spi_gdf, gpd.GeoDataFrame):
+            raise TypeError(f"SPI {spi_scale} input must be a GeoDataFrame.")
+        if "geometry" not in spi_gdf.columns:
+            raise ValueError(f"SPI {spi_scale} input is missing a 'geometry' column.")
 
-        # Calculate means for Severity, Duration, and Intensity
-        averaged_gdf = (
-            filtered_gdf.groupby('admin2_name')[['Drought Duration (months)', 'Drought Severity', 'Drought Intensity']]
-            .mean()  # Calculate means
-            .reset_index()
-            .merge(drought_gdf[['admin2_name', 'geometry']].drop_duplicates(), on='admin2_name')
-        )
-
-        # Ensure the resulting GeoDataFrame retains geospatial data
-        averaged_gdf = gpd.GeoDataFrame(averaged_gdf, geometry='geometry')
-
-        for j, characteristic in enumerate(drought_characteristics):
+        for j, characteristic in enumerate(available_characteristics):
             ax = axes[i, j]
 
-            # Get manual min and max for the characteristic
+            if plot_type == "averages":
+                column = characteristic
+            elif plot_type == "differences":
+                column = drought_characteristics["differences"][characteristic]
+
+            # Get color scale limits
             vmin, vmax = color_scale_limits[characteristic]
 
-            # Use the same colormap for Duration and Intensity
-            if characteristic in ['Drought Duration (months)', 'Drought Intensity']:
-                cmap = 'YlOrRd'  # Consistent colormap
-            else:
-                cmap = 'YlOrRd_r'  # Reversed colormap for Severity
+            # Use the same colormap for Duration and Intensity, reversed for Severity
+            cmap = "YlOrRd" if "Duration" in characteristic or "Intensity" in characteristic else "YlOrRd_r"
+            if plot_type == "differences":
+                cmap = "RdBu"  # Fixed colormap for differences
 
-            # Plot the drought characteristic map
-            averaged_gdf.plot(
-                column=characteristic,
+            # Plot the map
+            spi_gdf.plot(
+                column=column,
                 cmap=cmap,
                 linewidth=0.8,
                 ax=ax,
-                edgecolor='black',
+                edgecolor="black",
                 legend=True,
-                legend_kwds={'shrink': 0.6},
+                legend_kwds={"shrink": 0.6},
                 vmin=vmin,
-                vmax=vmax  # Use manual color scale
+                vmax=vmax,
             )
 
-            # If cluster boundaries are provided, overlay them
+            # Overlay cluster boundaries if provided
             if cluster_boundaries_df is not None:
                 cluster_boundaries_df.plot(
                     ax=ax,
-                    color='none',  # Transparent fill
-                    edgecolor='blue',  # Blue borders for clusters
+                    color="none",  # Transparent fill
+                    edgecolor=border_color,  # Automatically set border color
                     linewidth=1.5,  # Thicker lines for clarity
                 )
 
-            # Customize title and axis
-            ax.set_title(f"Average {characteristic} (SPI {spi_scale})", fontsize=12)
-            ax.axis('off')
+            # Customize title
+            title = characteristic.replace("_admin2", "").replace("Drought ", "")
+            ax.set_title(f"{plot_type.capitalize()} {title} (SPI {spi_scale})", fontsize=12)
+            ax.axis("off")
 
     # Display the maps
-    plt.suptitle("Geospatial Maps of Average Drought Characteristics by SPI Scale", fontsize=16)
+    plt.suptitle(f"Geospatial Maps of {plot_type.capitalize()} Drought Characteristics by SPI Scale", fontsize=16)
     plt.show()
 
     

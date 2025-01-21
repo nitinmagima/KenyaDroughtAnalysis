@@ -1,17 +1,11 @@
+import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.stats import gamma, probplot
-from scipy.stats import kstest
+from scipy.stats import gamma, probplot, kstest
 import ipywidgets as widgets
 from ipywidgets import Dropdown, interact
-import pandas as pd
 import plotly.graph_objects as go
-from scipy.stats import gamma, kstest
-import pandas as pd
 import geopandas as gpd
-import matplotlib.pyplot as plt
 from IPython.display import display, clear_output
-import ipywidgets as widgets
-from scipy.stats import gamma, probplot
 import folium
 
 
@@ -298,16 +292,6 @@ def create_dynamic_qq_plot(zambia_rain_df):
     # Trigger the initial plot
     dropdown.value = dropdown.options[0]  # Ensure the first plot is displayed
 
-    
-    
-    
-
-    
-
-    
-    
-    
-    
     
     
     

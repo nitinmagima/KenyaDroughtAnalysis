@@ -1,9 +1,19 @@
 from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 import plotly.graph_objects as go
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.colors as mcolors
+from scipy.cluster.hierarchy import dendrogram, linkage
+import pandas as pd
+
+
+############################################################################################
+
+# Principal Component Analysis Functions
+
+############################################################################################
 
 
 def compute_cumulative_variance(feature_vector):
@@ -76,11 +86,11 @@ def plot_cumulative_variance_plotly(cumulative_variance):
     fig.show()
 
     
-'''
+############################################################################################
 
-Clustering Functions
+# Clustering Functions
 
-'''
+############################################################################################
 
 
 def compute_wcss(reduced_features, cluster_range=range(1, 11)):
@@ -101,6 +111,7 @@ def compute_wcss(reduced_features, cluster_range=range(1, 11)):
         kmeans.fit(reduced_features)
         wcss.append(kmeans.inertia_)  # Inertia is the WCSS
     return wcss
+
 
 def plot_elbow_method_interactive(wcss, cluster_range=range(1, 11)):
     """
@@ -152,81 +163,6 @@ def plot_elbow_method_interactive(wcss, cluster_range=range(1, 11)):
     fig.show()
     
     
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import matplotlib.colors as mcolors
-
-def plot_all_geospatial_kmeans_clusters_with_legend(drought_gdf, title):
-    
-    ## TO DELETE!!!
-
-    """
-    Plots a static geospatial map showing all K-Means clusters with each cluster in a different color.
-    Includes a legend to identify each cluster.
-
-    Parameters:
-    - drought_gdf (GeoDataFrame): The GeoDataFrame containing the clustering results and geometry.
-    - title (str): Title for the plot to describe the context (e.g., clustering parameters).
-    """
-    # Check if the cluster column exists in the GeoDataFrame
-    if 'cluster' not in drought_gdf.columns:
-        print(f"Error: The column 'cluster' does not exist in the GeoDataFrame.")
-        return
-
-    # Set up the figure and axis
-    fig, ax = plt.subplots(figsize=(12, 10))
-
-    # Plot the entire GeoDataFrame with a default color (to show background regions)
-    drought_gdf.plot(
-        color='lightgrey',  # Default color for non-clustered regions
-        linewidth=0.5,      # Line width for boundaries
-        ax=ax,              # Axis to plot on
-        edgecolor='black'   # Edge color
-    )
-
-    # Get unique clusters
-    unique_clusters = drought_gdf['cluster'].unique()
-
-    # Generate distinct colors using Tableau Colors (a set of distinct colors provided by matplotlib)
-    distinct_colors = list(mcolors.TABLEAU_COLORS.values())
-    if len(unique_clusters) > len(distinct_colors):
-        # If there are more clusters than available distinct colors, repeat the color set
-        distinct_colors = distinct_colors * (len(unique_clusters) // len(distinct_colors) + 1)
-
-    # Create a list to hold legend entries
-    legend_patches = []
-
-    # Plot each cluster with a different color
-    for idx, cluster_label in enumerate(unique_clusters):
-        color = distinct_colors[idx]  # Get a distinct color for the current cluster
-        drought_gdf[drought_gdf['cluster'] == cluster_label].plot(
-            color=color,         # Color for the current cluster
-            linewidth=0.8,       # Line width for boundaries
-            ax=ax,               # Axis to plot on
-            edgecolor='black'    # Edge color
-        )
-        # Add an entry to the legend
-        legend_patches.append(mpatches.Patch(color=color, label=f'Cluster {cluster_label}'))
-
-    # Add the legend to the plot
-    plt.legend(handles=legend_patches, title="K-Means Clusters", loc='upper right', fontsize='small', title_fontsize='medium')
-
-    # Customize the title and remove axis
-    plt.title(f'K-Means Clusters by Administrative Unit Using Precipitation - {title}', fontsize=15)
-    plt.axis('off')
-
-    # Display the map
-    plt.show()
-
-
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from scipy.cluster.hierarchy import dendrogram, linkage
-import matplotlib.colors as mcolors
-import pandas as pd
-
-# Function to plot hierarchical clustering dendrogram
 def plot_hierarchical_dendrogram(reduced_features, method='ward', truncate_mode='level', p=5, cut_off=None, title='Dendrogram for Hierarchical Clustering'):
     """
     Performs hierarchical clustering using the specified method and plots the dendrogram.
@@ -261,75 +197,6 @@ def plot_hierarchical_dendrogram(reduced_features, method='ward', truncate_mode=
 
     return linkage_matrix
 
-
-# Function to plot a geospatial map showing all Hierarchical Clusters with a legend
-def plot_all_hierarchical_clusters_with_legend(drought_gdf, title):
-    
-    ## TO DELETE!!!
-    
-    """
-    Plots a static geospatial map showing all Hierarchical Clusters with each cluster in a different color.
-    Includes a legend to identify each cluster.
-
-    Parameters:
-    - drought_gdf (GeoDataFrame): The GeoDataFrame containing hierarchical cluster assignments.
-    - title (str): Title for the map plot.
-    """
-    # Check if the hierarchical_cluster column exists in the GeoDataFrame
-    if 'hierarchical_cluster' not in drought_gdf.columns:
-        print(f"Error: The column 'hierarchical_cluster' does not exist in the GeoDataFrame.")
-        return
-
-    # Set up the figure and axis
-    fig, ax = plt.subplots(figsize=(12, 10))
-
-    # Plot the entire GeoDataFrame with a default color (to show background regions)
-    drought_gdf.plot(
-        color='lightgrey',     # Default color for all administrative units
-        linewidth=0.5,         # Line width for boundaries
-        ax=ax,                 # Axis to plot on
-        edgecolor='black'      # Edge color
-    )
-
-    # Get unique clusters
-    unique_clusters = drought_gdf['hierarchical_cluster'].unique()
-
-    # Generate distinct colors using Tableau Colors (a set of distinct colors provided by matplotlib)
-    distinct_colors = list(mcolors.TABLEAU_COLORS.values())
-    if len(unique_clusters) > len(distinct_colors):
-        # If there are more clusters than available distinct colors, repeat the color set
-        distinct_colors = distinct_colors * (len(unique_clusters) // len(distinct_colors) + 1)
-
-    # Create a list to hold legend entries
-    legend_patches = []
-
-    # Plot each cluster with a different color
-    for idx, cluster_label in enumerate(unique_clusters):
-        color = distinct_colors[idx]  # Get a distinct color for the current cluster
-        drought_gdf[drought_gdf['hierarchical_cluster'] == cluster_label].plot(
-            color=color,         # Color for the current cluster
-            linewidth=0.8,       # Line width for boundaries
-            ax=ax,               # Axis to plot on
-            edgecolor='black'    # Edge color
-        )
-        # Add an entry to the legend
-        legend_patches.append(mpatches.Patch(color=color, label=f'Cluster {cluster_label}'))
-
-    # Add the legend to the plot
-    plt.legend(handles=legend_patches, title="Hierarchical Clusters", loc='upper right', fontsize='small', title_fontsize='medium')
-
-    # Customize the title and remove axis
-    plt.title(f'Hierarchical Clusters by Administrative Unit - {title}', fontsize=15)
-    plt.axis('off')
-
-    # Display the map
-    plt.show()
-
-
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import matplotlib.colors as mcolors
 
 def plot_kmeans_and_hierarchical_clusters(drought_gdf, kmeans_title, hierarchical_title):
     """
@@ -389,33 +256,3 @@ def plot_kmeans_and_hierarchical_clusters(drought_gdf, kmeans_title, hierarchica
     plt.tight_layout()
     plt.show()
     
-    
-    
-import geopandas as gpd
-
-def save_regular_cluster_boundaries(gdf, output_path):
-    """
-    Dissolve GeoDataFrame by K-Means clusters and save to a file.
-
-    Parameters:
-    - gdf (GeoDataFrame): Input GeoDataFrame containing K-Means cluster information.
-    - output_path (str): File path to save the dissolved boundaries.
-    """
-    regular_cluster_boundaries = gdf.dissolve(by='cluster', aggfunc='sum').reset_index()
-    regular_cluster_boundaries.to_file(output_path, driver='GeoJSON')
-    print(f"Regular cluster boundaries saved successfully to {output_path}")
-
-
-def save_hierarchical_cluster_boundaries(gdf, output_path):
-    """
-    Dissolve GeoDataFrame by Hierarchical clusters and save to a file.
-
-    Parameters:
-    - gdf (GeoDataFrame): Input GeoDataFrame containing Hierarchical cluster information.
-    - output_path (str): File path to save the dissolved boundaries.
-    """
-    hierarchical_cluster_boundaries = gdf.dissolve(by='hierarchical_cluster', aggfunc='sum').reset_index()
-    hierarchical_cluster_boundaries.to_file(output_path, driver='GeoJSON')
-    print(f"Hierarchical cluster boundaries saved successfully to {output_path}")
-
-

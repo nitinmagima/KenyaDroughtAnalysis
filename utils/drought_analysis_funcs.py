@@ -915,82 +915,68 @@ cluster boundaries (either k-means or hierarchical) or passed in
 
 ############################################################################################
 
-
 def map_drought_characteristics(
     gdf1,
     gdf2,
     cluster_boundaries_df=None,
-    drought_diff_df=None,
-    plot_type="averages",
+    cluster_type=None,
 ):
     """
     Plots geospatial maps for drought characteristics averaged for each admin2 region 
-    or the difference from cluster averages, with consistent color scales.
+    with consistent color scales.
 
     Parameters:
-    - gdf1 (GeoDataFrame): GeoDataFrame for SPI 1 averages by admin2 (required for 'averages' plot).
-    - gdf2 (GeoDataFrame): GeoDataFrame for SPI 3 averages by admin2 (required for 'averages' plot).
+    - gdf1 (GeoDataFrame): GeoDataFrame for SPI 1 averages by admin2.
+    - gdf2 (GeoDataFrame): GeoDataFrame for SPI 3 averages by admin2.
     - cluster_boundaries_df (GeoDataFrame, optional): GeoDataFrame containing cluster boundaries.
-    - drought_diff_df (GeoDataFrame, optional): GeoDataFrame containing pre-calculated drought differences 
-      (required for 'differences' plot).
-    - plot_type (str): "averages" (default) to plot average characteristics or "differences" to plot differences.
+    - cluster_type (str, optional): A string indicating the type of clustering (e.g., "K-Means", "Hierarchical").
+      If None, the default title is used.
 
     Raises:
-    - ValueError: If required inputs for the selected plot type are missing.
+    - ValueError: If required inputs are missing.
     """
-    if plot_type not in ["averages", "differences"]:
-        raise ValueError("plot_type must be 'averages' or 'differences'.")
+    # Validate inputs
+    if gdf1 is None or gdf2 is None:
+        raise ValueError("gdf1 and gdf2 are required for plotting averages.")
 
-    # Combine possible drought characteristics
-    drought_characteristics = {
-        "averages": [
-            "Drought Duration (months)",
-            "Drought Severity",
-            "Drought Intensity",
-            "Drought Duration (months)_admin2",
-            "Drought Severity_admin2",
-            "Drought Intensity_admin2",
-        ],
-        "differences": {
-            "Drought Duration (months)": "Drought Duration Diff",
-            "Drought Severity": "Drought Severity Diff",
-            "Drought Intensity": "Drought Intensity Diff",
-        },
+    # Define drought characteristics and their color scale limits
+    drought_characteristics = [
+        "Drought Duration (months)",
+        "Drought Severity",
+        "Drought Intensity",
+        "Drought Duration (months)_admin2",
+        "Drought Severity_admin2",
+        "Drought Intensity_admin2",
+    ]
+    color_scale_limits = {
+        "Drought Duration (months)": (0, 4),
+        "Drought Severity": (-3, 0),
+        "Drought Intensity": (0, 4),
+        "Drought Duration (months)_admin2": (0, 4),
+        "Drought Severity_admin2": (-3, 0),
+        "Drought Intensity_admin2": (0, 4),
     }
 
-    if plot_type == "averages":
-        # Validate inputs
-        if gdf1 is None or gdf2 is None:
-            raise ValueError("gdf1 and gdf2 are required for 'averages' plot.")
-        spi_dataframes = {1: gdf1, 3: gdf2}
-        available_characteristics = [
-            char
-            for char in drought_characteristics["averages"]
-            if char in gdf1.columns and char in gdf2.columns
-        ]
-        color_scale_limits = {
-            "Drought Duration (months)": (0, 4),
-            "Drought Severity": (-3, 0),
-            "Drought Intensity": (0, 4),
-            "Drought Duration (months)_admin2": (0, 4),
-            "Drought Severity_admin2": (-3, 0),
-            "Drought Intensity_admin2": (0, 4),
-        }
-        border_color = "blue"  # Set border color for averages
-    elif plot_type == "differences":
-        # Validate inputs
-        if drought_diff_df is None:
-            raise ValueError("drought_diff_df is required for 'differences' plot.")
-        spi_dataframes = {1: drought_diff_df[drought_diff_df["spi_scale"] == 1], 3: drought_diff_df[drought_diff_df["spi_scale"] == 3]}
-        available_characteristics = list(drought_characteristics["differences"].keys())
-        color_scale_limits = {char: (-3, 3) for char in available_characteristics}
-        border_color = "black"  # Set border color for differences
+    # Filter available characteristics
+    available_characteristics = [
+        char
+        for char in drought_characteristics
+        if char in gdf1.columns and char in gdf2.columns
+    ]
+
+    # Generate title based on cluster type
+    if cluster_type is None:
+        title_suffix = ""
+    else:
+        title_suffix = f" with {cluster_type} Clusters"
 
     # Set up the figure
     fig, axes = plt.subplots(
         nrows=2, ncols=len(available_characteristics), figsize=(6 * len(available_characteristics), 10)
     )
     fig.subplots_adjust(hspace=0.2, wspace=0.3)  # Adjust spacing
+
+    spi_dataframes = {1: gdf1, 3: gdf2}
 
     for i, (spi_scale, spi_gdf) in enumerate(spi_dataframes.items()):
         if not isinstance(spi_gdf, gpd.GeoDataFrame):
@@ -1001,22 +987,15 @@ def map_drought_characteristics(
         for j, characteristic in enumerate(available_characteristics):
             ax = axes[i, j]
 
-            if plot_type == "averages":
-                column = characteristic
-            elif plot_type == "differences":
-                column = drought_characteristics["differences"][characteristic]
-
             # Get color scale limits
             vmin, vmax = color_scale_limits[characteristic]
 
             # Use the same colormap for Duration and Intensity, reversed for Severity
             cmap = "YlOrRd" if "Duration" in characteristic or "Intensity" in characteristic else "YlOrRd_r"
-            if plot_type == "differences":
-                cmap = "RdBu"  # Fixed colormap for differences
 
             # Plot the map
             spi_gdf.plot(
-                column=column,
+                column=characteristic,
                 cmap=cmap,
                 linewidth=0.8,
                 ax=ax,
@@ -1032,17 +1011,20 @@ def map_drought_characteristics(
                 cluster_boundaries_df.plot(
                     ax=ax,
                     color="none",  # Transparent fill
-                    edgecolor=border_color,  # Automatically set border color
+                    edgecolor="blue",  # Blue border for averages
                     linewidth=1.5,  # Thicker lines for clarity
                 )
 
             # Customize title
             title = characteristic.replace("_admin2", "").replace("Drought ", "")
-            ax.set_title(f"{plot_type.capitalize()} {title} (SPI {spi_scale})", fontsize=12)
+            ax.set_title(f"Averages {title} (SPI {spi_scale})", fontsize=12)
             ax.axis("off")
 
-    # Display the maps
-    plt.suptitle(f"Geospatial Maps of {plot_type.capitalize()} Drought Characteristics by SPI Scale", fontsize=16)
+    # Display the maps with dynamic title
+    plt.suptitle(
+        f"Geospatial Maps of Averages Drought Characteristics by SPI Scale{title_suffix}",
+        fontsize=16,
+    )
     plt.show()
 
     

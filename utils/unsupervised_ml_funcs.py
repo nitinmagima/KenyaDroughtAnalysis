@@ -7,7 +7,7 @@ import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 from scipy.cluster.hierarchy import dendrogram, linkage
 import pandas as pd
-
+import streamlit as st
 
 ############################################################################################
 
@@ -198,7 +198,7 @@ def plot_hierarchical_dendrogram(reduced_features, method='ward', truncate_mode=
     return linkage_matrix
 
 
-def plot_kmeans_and_hierarchical_clusters(drought_gdf, kmeans_title, hierarchical_title):
+def plot_kmeans_and_hierarchical_clusters(drought_gdf, kmeans_title, hierarchical_title, output=None):
     """
     Plots geospatial maps for both K-Means and Hierarchical Clusters side by side.
 
@@ -206,14 +206,15 @@ def plot_kmeans_and_hierarchical_clusters(drought_gdf, kmeans_title, hierarchica
     - drought_gdf (GeoDataFrame): The GeoDataFrame containing clustering results and geometry.
     - kmeans_title (str): Title for the K-Means plot.
     - hierarchical_title (str): Title for the Hierarchical Clustering plot.
+    - output (str, optional): Controls the output. Options:
+        - None: Show the plot using plt.show() (for notebooks).
+        - 'streamlit': Display the plot in Streamlit using st.pyplot().
     """
     # Check if required columns exist in the GeoDataFrame
     if 'cluster' not in drought_gdf.columns:
-        print("Error: The column 'cluster' does not exist in the GeoDataFrame for K-Means clustering.")
-        return
+        raise ValueError("The column 'cluster' does not exist in the GeoDataFrame for K-Means clustering.")
     if 'hierarchical_cluster' not in drought_gdf.columns:
-        print("Error: The column 'hierarchical_cluster' does not exist in the GeoDataFrame for Hierarchical clustering.")
-        return
+        raise ValueError("The column 'hierarchical_cluster' does not exist in the GeoDataFrame for Hierarchical clustering.")
 
     # Set up the figure with two side-by-side subplots
     fig, axes = plt.subplots(1, 2, figsize=(20, 10))
@@ -252,7 +253,11 @@ def plot_kmeans_and_hierarchical_clusters(drought_gdf, kmeans_title, hierarchica
     axes[1].set_title(f'Hierarchical Clusters - {hierarchical_title}', fontsize=15)
     axes[1].axis('off')
 
-    # Adjust layout and display the plots
+    # Adjust layout
     plt.tight_layout()
-    plt.show()
-    
+
+    # Handle output
+    if output == 'streamlit':
+        st.pyplot(fig)  # Display in Streamlit
+    else:
+        plt.show()  # Default behavior for notebooks

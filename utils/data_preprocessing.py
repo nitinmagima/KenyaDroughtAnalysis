@@ -14,13 +14,6 @@ Functions to load and preprocess CHIRPS rainfall data
 
 ############################################################################################
 
-def initialize_ee():
-    """
-    Initialize Google Earth Engine with authentication and project setup.
-    """
-    ee.Authenticate()
-    ee.Initialize(project='ee-sg4283')  # Replace with your project ID
-
 
 def fetch_precipitation_data_admin2(admin2_name):
     """
@@ -28,7 +21,7 @@ def fetch_precipitation_data_admin2(admin2_name):
     and return a restructured DataFrame with the following columns:
     - year, month, date, region, admin2_name, precipitation.
     """
-    chirps = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY')
+    chirps = ee.ImageCollection('UCSB-CHG/CHIRPS/PENTAD')
     startyear, endyear = 2000, 2023
     startdate, enddate = ee.Date.fromYMD(startyear, 1, 1), ee.Date.fromYMD(endyear, 12, 31)
 

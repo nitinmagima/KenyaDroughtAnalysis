@@ -12,18 +12,13 @@ os.chdir(project_root)  # Set working directory to app_utils
 # Add app_utils to sys.path for imports
 sys.path.append(project_root)
 
-# Debug: Verify working directory and sys.path
-st.write("Current Working Directory:", os.getcwd())
-st.write("Python Path:", sys.path)
-
 # Import the plotting functions
 try:
     from drought_maps import (
         plot_kmeans_and_hierarchical_clusters,
         map_drought_characteristics,
-        create_hover_heatmap_with_custom_colors
+        create_streamlit_heatmap,
     )
-    st.write("Import Successful!")
 except Exception as e:
     st.error(f"Import Failed: {e}")
     st.stop()
@@ -98,6 +93,23 @@ with tab2:
 with tab3:
     st.header("Drought Characteristics Visualization")
 
+    # Add the augmented description under the header
+    st.markdown(
+        """
+        This visualization showcases geospatial maps of Zambia, illustrating average drought characteristics based on 
+        two Standardized Precipitation Index (SPI) scales: SPI 1 (1-month scale) and SPI 3 (3-month scale). 
+        The maps depict three key drought metrics: average duration (months), severity (precipitation deficit), 
+        and intensity (sharpness of drought conditions). SPI 1 captures short-term drought dynamics, 
+        while SPI 3 reflects relatively longer-term trends.
+
+        Additionally, these visualizations incorporate overlays of cluster boundaries generated from 
+        K-Means and Hierarchical clustering methods. These boundaries highlight distinct spatial groupings 
+        based on the drought characteristics, providing an insightful context to evaluate patterns and 
+        trends within each cluster. The blue lines delineate these clusters, allowing for a clearer 
+        interpretation of regional drought dynamics in relation to the clustering models.
+        """
+    )
+
     # Sub-header for K-Means Clustering
     st.subheader("Drought Characteristics with K-Means Clusters")
     try:
@@ -130,64 +142,52 @@ with tab3:
     except Exception as e:
         st.error(f"An error occurred while plotting Hierarchical clusters: {e}")
 
-# Tab 4: Drought Heatmaps
+# Tab for Drought Percentage Plots
 with tab4:
-    st.header("Drought Heatmaps")
+    st.header("Drought Percentages by Clustering")
 
-    # Load drought percentage data
-    try:
-        perc_droughts_km_spi1 = pd.read_csv(perc_droughts_km_spi1_path)
-        perc_droughts_km_spi3 = pd.read_csv(perc_droughts_km_spi3_path)
-        perc_droughts_hc_spi1 = pd.read_csv(perc_droughts_hc_spi1_path)
-        perc_droughts_hc_spi3 = pd.read_csv(perc_droughts_hc_spi3_path)
+    # SPI1 Heatmaps
+    col1, col2 = st.columns(2)
 
-        st.success("Successfully loaded drought percentage CSV files!")
+    with col1:
+        df_km_spi1 = pd.read_csv(perc_droughts_km_spi1_path).drop(columns=['total_regions'], errors='ignore')
+        fig_km_spi1 = create_streamlit_heatmap(
+            df=df_km_spi1,
+            title="K-Means Clusters (SPI1)",
+            ylabel="K-Means Cluster",
+            index_col="cluster"
+        )
+        st.pyplot(fig_km_spi1)
 
-        # SPI1 Heatmaps
-        st.subheader("SPI1 Drought Percentages")
-        col1, col2 = st.columns(2)
+    with col2:
+        df_hc_spi1 = pd.read_csv(perc_droughts_hc_spi1_path).drop(columns=['total_regions'], errors='ignore')
+        fig_hc_spi1 = create_streamlit_heatmap(
+            df=df_hc_spi1,
+            title="Hierarchical Clusters (SPI1)",
+            ylabel="Hierarchical Cluster",
+            index_col="hierarchical_cluster"
+        )
+        st.pyplot(fig_hc_spi1)
 
-        with col1:
-            st.subheader("K-Means Clusters (SPI1)")
-            create_hover_heatmap_with_custom_colors(
-                perc_droughts_km_spi1,
-                title="Drought % of Admin Zones by K-Means Cluster (SPI1)",
-                ylabel="K-Means Cluster",
-                index_col="cluster"
-            )
+    # SPI3 Heatmaps
+    col3, col4 = st.columns(2)
 
-        with col2:
-            st.subheader("Hierarchical Clusters (SPI1)")
-            create_hover_heatmap_with_custom_colors(
-                perc_droughts_hc_spi1,
-                title="Drought % of Admin Zones by Hierarchical Cluster (SPI1)",
-                ylabel="Hierarchical Cluster",
-                index_col="hierarchical_cluster"
-            )
+    with col3:
+        df_km_spi3 = pd.read_csv(perc_droughts_km_spi3_path).drop(columns=['total_regions'], errors='ignore')
+        fig_km_spi3 = create_streamlit_heatmap(
+            df=df_km_spi3,
+            title="K-Means Clusters (SPI3)",
+            ylabel="K-Means Cluster",
+            index_col="cluster"
+        )
+        st.pyplot(fig_km_spi3)
 
-        # SPI3 Heatmaps
-        st.subheader("SPI3 Drought Percentages")
-        col3, col4 = st.columns(2)
-
-        with col3:
-            st.subheader("K-Means Clusters (SPI3)")
-            create_hover_heatmap_with_custom_colors(
-                perc_droughts_km_spi3,
-                title="Drought % of Admin Zones by K-Means Cluster (SPI3)",
-                ylabel="K-Means Cluster",
-                index_col="cluster"
-            )
-
-        with col4:
-            st.subheader("Hierarchical Clusters (SPI3)")
-            create_hover_heatmap_with_custom_colors(
-                perc_droughts_hc_spi3,
-                title="Drought % of Admin Zones by Hierarchical Cluster (SPI3)",
-                ylabel="Hierarchical Cluster",
-                index_col="hierarchical_cluster"
-            )
-    except FileNotFoundError as e:
-        st.error(f"Drought percentage CSV files not found: {e}")
-    except Exception as e:
-        st.error(f"An error occurred while loading or plotting the drought percentages: {e}")
-
+    with col4:
+        df_hc_spi3 = pd.read_csv(perc_droughts_hc_spi3_path).drop(columns=['total_regions'], errors='ignore')
+        fig_hc_spi3 = create_streamlit_heatmap(
+            df=df_hc_spi3,
+            title="Hierarchical Clusters (SPI3)",
+            ylabel="Hierarchical Cluster",
+            index_col="hierarchical_cluster"
+        )
+        st.pyplot(fig_hc_spi3)

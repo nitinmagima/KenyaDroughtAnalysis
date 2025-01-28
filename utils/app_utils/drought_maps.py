@@ -117,17 +117,11 @@ def map_drought_characteristics(
         if char in gdf1.columns and char in gdf2.columns
     ]
 
-    # Generate title based on cluster type
-    if cluster_type is None:
-        title_suffix = ""
-    else:
-        title_suffix = f" with {cluster_type} Clusters"
-
     # Set up the figure
     fig, axes = plt.subplots(
         nrows=2, ncols=len(available_characteristics), figsize=(6 * len(available_characteristics), 10)
     )
-    fig.subplots_adjust(hspace=0.2, wspace=0.3)  # Adjust spacing
+    fig.subplots_adjust(hspace=0.4, wspace=0.3)  # Adjust spacing
 
     spi_dataframes = {1: gdf1, 3: gdf2}
 
@@ -170,58 +164,58 @@ def map_drought_characteristics(
                     linewidth=1.5,  # Thicker lines for clarity
                 )
 
-            # Customize title
-            title = characteristic.replace("_admin2", "").replace("Drought ", "")
-            ax.set_title(f"Averages {title} (SPI {spi_scale})", fontsize=12)
+            # Set individual plot title
+            title = characteristic.replace("_admin2", "").replace("Drought ", "Average ")
+            ax.set_title(f"{title} (SPI {spi_scale})", fontsize=12)
             ax.axis("off")
 
-    # Display the maps with dynamic title
-    plt.suptitle(
-        f"Geospatial Maps of Averages Drought Characteristics by SPI Scale{title_suffix}",
-        fontsize=16,
-    )
+    # Remove the main figure title
+    plt.suptitle("")  # No overarching subtitle
 
     # Use Streamlit to display the figure
     st.pyplot(fig)
 
 
-def create_hover_heatmap_with_custom_colors(df, title="Interactive Heatmap", ylabel="Hierarchical Cluster", index_col="hierarchical_cluster"):
+
+def create_streamlit_heatmap(df, title, ylabel, index_col, vmax=100):
     """
-    Create a heatmap with a custom color scheme and display it in Streamlit.
-    
+    Create a heatmap for Streamlit with improved alignment and aesthetics.
+
     Parameters:
-    - df (pd.DataFrame): The DataFrame containing clustering information and drought percentages.
+    - df (pd.DataFrame): The DataFrame containing drought percentage data.
     - title (str): Title of the heatmap.
     - ylabel (str): Label for the y-axis.
-    - index_col (str): The column name to set as the index.
+    - index_col (str): The column to set as the index.
+    - vmax (int): Maximum value for the color scale.
+
+    Returns:
+    - fig: Matplotlib figure object.
     """
-    # Drop unnecessary columns like 'total_regions'
-    if 'total_regions' in df.columns:
-        df = df.drop(columns=['total_regions'])
-
-    # Ensure the specified column is the index
-    if index_col not in df.columns:
-        st.error(f"Column '{index_col}' not found in the DataFrame.")
-        return
-
-    df = df.set_index(index_col)
-
-    # Create the heatmap with a custom color map
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # Prepare the DataFrame
+    if index_col in df.columns:
+        df = df.set_index(index_col)
+    else:
+        raise KeyError(f"Index column '{index_col}' not found in DataFrame.")
+    
+    # Create the heatmap
+    fig, ax = plt.subplots(figsize=(10, 5))
     sns.heatmap(
-        df, 
-        ax=ax, 
-        cmap="OrRd",  # Light orange to red color scheme
-        annot=True,   # Add values to cells
-        fmt=".2f",    # Format for the annotations
-        linewidths=0.5,  # Add lines between cells
-        cbar_kws={'label': '% of Regions in Drought'}
+        df,
+        ax=ax,
+        cmap="YlOrRd",  # Light orange to red
+        cbar_kws={'label': '% of Regions in Drought'},
+        vmin=0,
+        vmax=vmax,
+        linewidths=0.5
     )
-
-    # Add titles and labels
-    ax.set_title(title, fontsize=16)
-    ax.set_xlabel("Year-Month", fontsize=12)
+    
+    # Customize labels and title
+    ax.set_title(title, fontsize=14, pad=20)
     ax.set_ylabel(ylabel, fontsize=12)
+    ax.set_xlabel("Year-Month", fontsize=12)
+    ax.tick_params(axis='x', labelrotation=90)
+    ax.tick_params(axis='both', labelsize=10)  # Adjust label font size
+    
+    return fig
 
-    # Display the heatmap in Streamlit
-    st.pyplot(fig)
+

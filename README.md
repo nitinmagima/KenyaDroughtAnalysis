@@ -97,7 +97,7 @@ These are the libraries and packages required for your Jupyter Notebook:
 ### Core Libraries
 - `ee` (Google Earth Engine)
 - `geemap`
-- `![](https://img.shields.io/badge/numpy-informational?style=flat&logo=numpy&logoColor=white&color=003865)`
+- `![](https://img.shields.io/badge/NumPy-informational?style=flat&logo=numpy&logoColor=white&color=003865)`
 - `pandas`
 - `geopandas`
 - `json`

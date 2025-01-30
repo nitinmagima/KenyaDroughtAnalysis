@@ -116,7 +116,7 @@ These are the libraries and packages required for your Jupyter Notebook:
 ![](https://img.shields.io/badge/pymannkendall-informational?style=flat&color=003865)
 
 ### Machine Learning Libraries
-![](https://img.shields.io/badge/sklearn-informational?style=flat&logo=sklearn&logoColor=white&color=003865) (scikit-learn)
+![](https://img.shields.io/badge/sklearn-informational?style=flat&logo=sklearn&logoColor=white&color=003865) 
 ![](https://img.shields.io/badge/scipy.cluster.hierarchy-informational?style=flat&color=003865)
 
 ### Interactive Widgets

@@ -112,15 +112,15 @@ These are the libraries and packages required for your Jupyter Notebook:
 - ![](https://img.shields.io/badge/plotly-informational?style=flat&logo=plotly&logoColor=white&color=003865)
 
 ### Statistical and Analysis Libraries
-- `scipy`
-- `pymannkendall`
+- ![](https://img.shields.io/badge/scipy-informational?style=flat&logo=scipy&logoColor=white&color=003865)
+- ![](https://img.shields.io/badge/pymannkendall-informational?style=flat&color=003865)
 
 ### Machine Learning Libraries
-- `sklearn` (scikit-learn)
-- `scipy.cluster.hierarchy`
+- ![](https://img.shields.io/badge/sklearn-informational?style=flat&logo=sklearn&logoColor=white&color=003865) (scikit-learn)
+- ![](https://img.shields.io/badge/scipy.cluster.hierarchy-informational?style=flat&color=003865)
 
 ### Interactive Widgets
-- `ipywidgets`
+- ![](https://img.shields.io/badge/ipywidgets-informational?style=flat&color=003865)
 
 ### Installation Instructions
 To ensure all dependencies are installed, please run the following command:

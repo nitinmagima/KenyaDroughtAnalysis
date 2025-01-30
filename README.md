@@ -95,15 +95,15 @@ This step aims to perform a comprehensive clustering analysis on rainfall across
 These are the libraries and packages required for your Jupyter Notebook:
 
 ### Core Libraries
-- ![](https://img.shields.io/badge/ee-informational?style=flat&logo=googlemaps&logoColor=white&color=003865) (Google Earth Engine) 
-- ![](https://img.shields.io/badge/geemap-informational?style=flat&logo=googlemaps&logoColor=white&color=003865)
-- ![](https://img.shields.io/badge/numpy-informational?style=flat&logo=numpy&logoColor=white&color=003865)
-- ![](https://img.shields.io/badge/pandas-informational?style=flat&logo=pandas&logoColor=white&color=003865)
-- ![](https://img.shields.io/badge/geopandas-informational?style=flat&logo=geopandas&logoColor=white&color=003865)
-- ![](https://img.shields.io/badge/json-informational?style=flat&logo=json&logoColor=white&color=003865)
-- ![](https://img.shields.io/badge/time-informational?style=flat&color=003865)
-- ![](https://img.shields.io/badge/logging-informational?style=flat&color=003865)
-- ![](https://img.shields.io/badge/os-informational?style=flat&color=003865)
+![](https://img.shields.io/badge/ee-informational?style=flat&logo=googlemaps&logoColor=white&color=003865) (Google Earth Engine) 
+![](https://img.shields.io/badge/geemap-informational?style=flat&logo=googlemaps&logoColor=white&color=003865)
+![](https://img.shields.io/badge/numpy-informational?style=flat&logo=numpy&logoColor=white&color=003865)
+![](https://img.shields.io/badge/pandas-informational?style=flat&logo=pandas&logoColor=white&color=003865)
+![](https://img.shields.io/badge/geopandas-informational?style=flat&logo=geopandas&logoColor=white&color=003865)
+![](https://img.shields.io/badge/json-informational?style=flat&logo=json&logoColor=white&color=003865)
+![](https://img.shields.io/badge/time-informational?style=flat&color=003865)
+![](https://img.shields.io/badge/logging-informational?style=flat&color=003865)
+![](https://img.shields.io/badge/os-informational?style=flat&color=003865)
 
 ### Visualization Libraries
 - ![](https://img.shields.io/badge/matplotlib-informational?style=flat&logo=matplotlib&logoColor=white&color=003865)

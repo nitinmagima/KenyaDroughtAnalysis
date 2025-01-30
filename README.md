@@ -98,8 +98,8 @@ These are the libraries and packages required for your Jupyter Notebook:
 - `ee` (Google Earth Engine)
 - `geemap`
 - ![](https://img.shields.io/badge/numpy-informational?style=flat&logo=numpy&logoColor=white&color=003865)
-- `pandas`
-- `geopandas`
+- ![](https://img.shields.io/badge/pandas-informational?style=flat&logo=pandas&logoColor=white&color=003865)
+- ![](https://img.shields.io/badge/geopandas-informational?style=flat&logo=geopandas&logoColor=white&color=003865)
 - `json`
 - `time`
 - `logging`

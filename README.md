@@ -95,7 +95,7 @@ This step aims to perform a comprehensive clustering analysis on rainfall across
 These are the libraries and packages required for your Jupyter Notebook:
 
 ### Core Libraries
-![](https://img.shields.io/badge/ee-informational?style=flat&logo=googlemaps&logoColor=white&color=003865) (Google Earth Engine) 
+![](https://img.shields.io/badge/ee-informational?style=flat&logo=googlemaps&logoColor=white&color=003865) 
 ![](https://img.shields.io/badge/geemap-informational?style=flat&logo=googlemaps&logoColor=white&color=003865)
 ![](https://img.shields.io/badge/numpy-informational?style=flat&logo=numpy&logoColor=white&color=003865)
 ![](https://img.shields.io/badge/pandas-informational?style=flat&logo=pandas&logoColor=white&color=003865)
@@ -106,21 +106,21 @@ These are the libraries and packages required for your Jupyter Notebook:
 ![](https://img.shields.io/badge/os-informational?style=flat&color=003865)
 
 ### Visualization Libraries
-- ![](https://img.shields.io/badge/matplotlib-informational?style=flat&logo=matplotlib&logoColor=white&color=003865)
-- ![](https://img.shields.io/badge/seaborn-informational?style=flat&logo=seaborn&logoColor=white&color=003865)
-- ![](https://img.shields.io/badge/mpld3-informational?style=flat&color=003865)
-- ![](https://img.shields.io/badge/plotly-informational?style=flat&logo=plotly&logoColor=white&color=003865)
+![](https://img.shields.io/badge/matplotlib-informational?style=flat&logo=matplotlib&logoColor=white&color=003865)
+![](https://img.shields.io/badge/seaborn-informational?style=flat&logo=seaborn&logoColor=white&color=003865)
+![](https://img.shields.io/badge/mpld3-informational?style=flat&color=003865)
+![](https://img.shields.io/badge/plotly-informational?style=flat&logo=plotly&logoColor=white&color=003865)
 
 ### Statistical and Analysis Libraries
-- ![](https://img.shields.io/badge/scipy-informational?style=flat&logo=scipy&logoColor=white&color=003865)
-- ![](https://img.shields.io/badge/pymannkendall-informational?style=flat&color=003865)
+![](https://img.shields.io/badge/scipy-informational?style=flat&logo=scipy&logoColor=white&color=003865)
+![](https://img.shields.io/badge/pymannkendall-informational?style=flat&color=003865)
 
 ### Machine Learning Libraries
-- ![](https://img.shields.io/badge/sklearn-informational?style=flat&logo=sklearn&logoColor=white&color=003865) (scikit-learn)
-- ![](https://img.shields.io/badge/scipy.cluster.hierarchy-informational?style=flat&color=003865)
+![](https://img.shields.io/badge/sklearn-informational?style=flat&logo=sklearn&logoColor=white&color=003865) (scikit-learn)
+![](https://img.shields.io/badge/scipy.cluster.hierarchy-informational?style=flat&color=003865)
 
 ### Interactive Widgets
-- ![](https://img.shields.io/badge/ipywidgets-informational?style=flat&color=003865)
+![](https://img.shields.io/badge/ipywidgets-informational?style=flat&color=003865)
 
 ### Installation Instructions
 To ensure all dependencies are installed, please run the following command:

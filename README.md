@@ -127,7 +127,7 @@ To ensure all dependencies are installed, please run the following command:
 
 ```bash
 pip install earthengine-api geemap numpy pandas geopandas matplotlib seaborn mpld3 plotly scipy pymannkendall scikit-learn ipywidgets
-
+```
 
 ----
 

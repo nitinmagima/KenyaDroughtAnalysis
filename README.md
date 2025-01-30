@@ -4,9 +4,14 @@
 
 ## Project Overview
 
-**TODO**: Add project over
+Weather-indexed insurance is an emerging tool designed to support smallholder farmers in developing countries. Unlike traditional crop insurance, which compensates farmers for actual crop losses, weather-indexed insurance provides payouts based on an external index, such as rainfall levels. If rainfall falls below a predetermined threshold, farmers receive compensation—regardless of their actual yield. While this model offers advantages, it also introduces *basis risk*: the risk that farmers may experience significant crop losses but receive no payout. This has contributed to the limited adoption of indexed insurance among smallholder farmers.  
 
-----
+Building upon the work of [Lobel and Stigler et al. (2021)](https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/592677/Optimal_index_insurance_and_basis_risk_decompositi.pdf?sequence=1&amp;isAllowed=y), which examines different types of basis risk, our focus is on *zonal risk*—the risk arising from using the same index across an insurance zone when there is significant within-zone heterogeneity. Specifically, when payouts are determined by zone-average rainfall, farmers in drier sub-regions within the zone may receive insufficient coverage, exacerbating basis risk.  
+
+Our contribution is the application of unsupervised machine learning to identify clusters with minimal rainfall heterogeneity, particularly during drought conditions. By refining insurance zones based on rainfall patterns, we aim to reduce zonal risk and improve the effectiveness of weather-indexed insurance for smallholder farmers.
+
+The Jupyter Notebook builds on [ Mall, Pandey, Petropoulos, Singh, and Srivastava, (2021)
+](https://www.mdpi.com/2071-1050/13/3/1042) to replicate their drought identification and trend analysis in Zambia using Google Earth Engine (GEE) for Python. After applying this analysis, we use clustering techniques to explore spatial patterns in drought conditions.
 
 ## Analysis Steps
 
@@ -85,6 +90,47 @@ This step aims to perform a comprehensive clustering analysis on rainfall across
 
 ----
 
+## Dependencies 
+
+These are the libraries and packages required for your Jupyter Notebook:
+
+### Core Libraries
+- `ee` (Google Earth Engine)
+- `geemap`
+- `numpy`
+- `pandas`
+- `geopandas`
+- `json`
+- `time`
+- `logging`
+- `os`
+
+### Visualization Libraries
+- `matplotlib`
+- `seaborn`
+- `mpld3`
+- `plotly`
+
+### Statistical and Analysis Libraries
+- `scipy`
+- `pymannkendall`
+
+### Machine Learning Libraries
+- `sklearn` (scikit-learn)
+- `scipy.cluster.hierarchy`
+
+### Interactive Widgets
+- `ipywidgets`
+
+### Installation Instructions
+To ensure all dependencies are installed, please run the following command:
+
+```bash
+pip install earthengine-api geemap numpy pandas geopandas matplotlib seaborn mpld3 plotly scipy pymannkendall scikit-learn ipywidgets
+
+
+----
+
 ### Directory
 ```
 ├── .gitignore
@@ -121,7 +167,6 @@ This step aims to perform a comprehensive clustering analysis on rainfall across
 │   ├── heatmap_func.py
 │   ├── spi_funcs.py
 │   └── unsupervised_ml_funcs.py
-├── zambiadrought_admin1_withgee.ipynb
 ├── zambiadrought_admin2.ipynb
 └── zambiadrought_admin2_withgee.ipynb
 ```

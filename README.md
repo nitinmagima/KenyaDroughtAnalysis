@@ -106,10 +106,10 @@ These are the libraries and packages required for your Jupyter Notebook:
 - ![](https://img.shields.io/badge/os-informational?style=flat&color=003865)
 
 ### Visualization Libraries
-- `matplotlib`
-- `seaborn`
-- `mpld3`
-- `plotly`
+- ![](https://img.shields.io/badge/matplotlib-informational?style=flat&logo=matplotlib&logoColor=white&color=003865)
+- ![](https://img.shields.io/badge/seaborn-informational?style=flat&logo=seaborn&logoColor=white&color=003865)
+- ![](https://img.shields.io/badge/mpld3-informational?style=flat&color=003865)
+- ![](https://img.shields.io/badge/plotly-informational?style=flat&logo=plotly&logoColor=white&color=003865)
 
 ### Statistical and Analysis Libraries
 - `scipy`

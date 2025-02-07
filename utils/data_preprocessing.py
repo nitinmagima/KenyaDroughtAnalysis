@@ -248,6 +248,33 @@ Function to normalize precipitation data
 
 ############################################################################################
 
+def normalize_precipitation_data(df, feature_range=(0, 1)):
+    """
+    Normalizes precipitation data row-wise using MinMaxScaler.
+
+    Parameters:
+    - df (pd.DataFrame): The pivoted DataFrame with precipitation values to be normalized.
+    - feature_range (tuple): Desired range of transformed data (default: (0, 1)).
+
+    Returns:
+    - pd.DataFrame: A row-normalized DataFrame with the same structure as the input.
+    """
+    # Initialize the MinMaxScaler with the specified feature range
+    scaler = MinMaxScaler(feature_range=feature_range)
+
+    # Scale the values row-wise and retain the original structure
+    df_normalized = pd.DataFrame(
+        scaler.fit_transform(df.T).T,  # Transpose, scale row-wise, then transpose back
+        index=df.index,                # Retain the index (e.g., admin2_name)
+        columns=df.columns              # Retain the column names (e.g., year_month)
+    )
+
+    return df_normalized
+
+
+
+'''
+TO DELETE
 
 def normalize_precipitation_data(df, feature_range=(0, 1)):
     """
@@ -271,6 +298,7 @@ def normalize_precipitation_data(df, feature_range=(0, 1)):
     )
 
     return df_normalized
+'''
 
 
 ############################################################################################
